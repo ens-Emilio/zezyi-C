@@ -1,0 +1,9 @@
+# Local toolchains / SDKs
+emsdk/
+
+# Build artifacts
+*.o
+*.obj
+*.d
+test_logic
+zezyi

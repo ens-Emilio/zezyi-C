@@ -1,0 +1,6 @@
+marathon  = 0
+sprint    = 0
+ultra     = 0
+blitz     = 235
+survival  = 0
+cheese    = 0
