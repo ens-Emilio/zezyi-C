@@ -13,36 +13,35 @@
     html, body {
       width: 100%;
       height: 100%;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      font-family: monospace;
       overflow: hidden;
       touch-action: none;
     }
 
     body {
-      background: #0a0a0f;
-      color: #e0e0e0;
-      font-family: monospace;
       display: flex;
       flex-direction: column;
-      align-items: stretch;
       height: 100dvh;
     }
 
-    /* ---- Canvas wrapper ------------------------------------------------- */
+    /* ---- Canvas area ---------------------------------------------------- */
     #canvas-wrap {
       flex: 1 1 0;
       min-height: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: hidden;
     }
 
+    /* NOTE: Emscripten sets canvas.style.width/height inline after init.
+       fitCanvas() in JS overrides those values — do NOT set max-width/height
+       here as they won't win against inline styles. */
     #canvas {
       display: block;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      max-width: 100%;
-      max-height: 100%;
       touch-action: none;
     }
 
@@ -50,7 +49,7 @@
     #overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.88);
+      background: rgba(0,0,0,0.88);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -89,15 +88,13 @@
       border-radius: 2px;
       touch-action: manipulation;
     }
-
     #overlay .btn:active { background: #ffd700; }
 
     /* ---- Loading indicator ---------------------------------------------- */
     #status {
       position: fixed;
       bottom: 1rem;
-      left: 0;
-      right: 0;
+      left: 0; right: 0;
       text-align: center;
       font-size: 0.75rem;
       color: #555;
@@ -107,8 +104,7 @@
 
     #progress {
       display: none;
-      width: 200px;
-      height: 4px;
+      width: 200px; height: 4px;
       background: #222;
       border-radius: 2px;
       margin: 0.4rem auto 0;
@@ -116,8 +112,7 @@
     }
 
     #progress-bar {
-      height: 100%;
-      width: 0%;
+      height: 100%; width: 0%;
       background: #ffe066;
       transition: width 0.15s ease;
     }
@@ -125,10 +120,12 @@
     /* ---- Virtual gamepad ----------------------------------------------- */
     #controls {
       flex-shrink: 0;
-      display: none; /* shown only on touch devices via JS */
+      display: none;
+      flex-direction: column;
+      gap: 6px;
       background: #0d0d14;
       border-top: 1px solid #1e1e2e;
-      padding: 8px 10px env(safe-area-inset-bottom, 8px);
+      padding: 8px 8px env(safe-area-inset-bottom, 6px);
       user-select: none;
       -webkit-user-select: none;
       touch-action: none;
@@ -136,112 +133,80 @@
 
     .ctrl-row {
       display: flex;
-      align-items: center;
+      align-items: stretch;
       justify-content: center;
-      gap: 6px;
-      margin-bottom: 6px;
-    }
-    .ctrl-row:last-child { margin-bottom: 0; }
-
-    .ctrl-row.ctrl-aux {
-      justify-content: space-between;
-      padding: 0 4px;
-      margin-bottom: 4px;
+      gap: 5px;
     }
 
+    /* Base button */
     .btn-ctrl {
-      background: #1a1a2e;
+      flex: 1;
+      min-width: 44px;
+      height: 50px;
+      background: rgba(255,255,255,0.07);
       color: #ccc;
-      border: 1px solid #2a2a4a;
-      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
       font-family: monospace;
       font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
+      font-size: 1.2rem;
       display: flex;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
-      transition: background 0.05s, transform 0.05s;
-      /* prevent text selection on long press */
       user-select: none;
       -webkit-user-select: none;
+      transition: background 0.04s, transform 0.04s;
     }
 
-    .btn-ctrl:active,
-    .btn-ctrl.pressed {
-      background: #2e2e55;
+    .btn-ctrl.pressed,
+    .btn-ctrl:active {
+      background: rgba(80, 80, 180, 0.55);
       border-color: #ffe066;
       color: #ffe066;
-      transform: scale(0.93);
+      transform: scale(0.92);
     }
 
-    /* Main action buttons */
-    .btn-ctrl.btn-lg {
-      width: 56px;
-      height: 56px;
-      font-size: 1.3rem;
-    }
-
-    /* Secondary/aux buttons */
-    .btn-ctrl.btn-sm {
-      width: 60px;
+    /* Aux row (HOLD / PAUSE) — shorter height */
+    .ctrl-row.row-aux .btn-ctrl {
       height: 34px;
-      font-size: 0.72rem;
-      letter-spacing: 0.05em;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
     }
 
-    /* Hard drop — wider */
-    .btn-ctrl.btn-drop {
-      width: 72px;
-      height: 56px;
-      font-size: 1.1rem;
-    }
+    /* Accent tints */
+    .btn-ccw  { border-color: rgba(100,100,200,0.5); }
+    .btn-cw   { border-color: rgba(100,100,200,0.5); }
+    .btn-hold { border-color: rgba(40,120,120,0.5); color: #7ee8e8; }
+    .btn-pause{ border-color: rgba(120,100,20,0.5); color: #ffe066; }
+    .btn-drop { font-size: 1rem; }
 
-    /* Rotate CCW — accent */
-    .btn-ctrl.btn-ccw { border-color: #6060aa; }
-    /* Rotate CW — accent */
-    .btn-ctrl.btn-cw  { border-color: #6060aa; }
-    /* Hold — teal tint */
-    .btn-ctrl.btn-hold { border-color: #2a5a5a; color: #7ee8e8; }
-    /* Pause */
-    .btn-ctrl.btn-pause { border-color: #5a4a1a; color: #ffe066; }
+    /* Landscape mobile: controls move to the right side */
+    @media (orientation: landscape) and (max-height: 480px) {
+      body { flex-direction: row; }
 
-    /* Landscape layout: controls become a side strip */
-    @media (orientation: landscape) and (max-height: 500px) {
-      body {
-        flex-direction: row;
-      }
-      #canvas-wrap {
-        flex: 1 1 0;
-        height: 100dvh;
-      }
+      #canvas-wrap { height: 100dvh; }
+
       #controls {
-        width: 160px;
-        flex-shrink: 0;
         flex-direction: column;
+        width: 150px;
+        height: 100dvh;
         border-top: none;
         border-left: 1px solid #1e1e2e;
-        padding: 10px 8px;
-        overflow-y: auto;
-        display: none; /* shown by JS when touch detected */
-      }
-      #controls.visible {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-evenly;
-      }
-      .ctrl-row { flex-direction: column; gap: 5px; margin-bottom: 0; }
-      .ctrl-row.ctrl-main {
-        flex-direction: row;
-        flex-wrap: wrap;
+        padding: 8px 6px;
         gap: 5px;
         justify-content: center;
       }
-      .btn-ctrl.btn-lg { width: 50px; height: 50px; }
-      .btn-ctrl.btn-drop { width: 50px; height: 50px; }
+
+      .ctrl-row { flex-direction: column; gap: 5px; }
+      .ctrl-row.row-aux { flex-direction: row; }
+      .ctrl-row.row-main { flex-direction: row; flex-wrap: wrap; }
+
+      .btn-ctrl         { height: 44px; font-size: 1.1rem; }
+      .ctrl-row.row-aux .btn-ctrl { height: 32px; }
     }
   </style>
 </head>
@@ -258,21 +223,19 @@
   <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
 </div>
 
-<!-- Virtual gamepad (visible only on touch devices) -->
+<!-- Virtual gamepad — hidden until first touch -->
 <div id="controls">
-  <!-- Aux row: hold + pause -->
-  <div class="ctrl-row ctrl-aux">
-    <button class="btn-ctrl btn-sm btn-hold"  data-key="c"       data-code="KeyC"       data-kc="67">HOLD</button>
-    <button class="btn-ctrl btn-sm btn-pause" data-key="p"       data-code="KeyP"       data-kc="80">PAUSE</button>
+  <div class="ctrl-row row-aux">
+    <button class="btn-ctrl btn-hold"  data-key="c"  data-code="KeyC"       data-kc="67">HOLD</button>
+    <button class="btn-ctrl btn-pause" data-key="p"  data-code="KeyP"       data-kc="80">PAUSE</button>
   </div>
-  <!-- Main row: CCW | ← ↓ → | CW | drop -->
-  <div class="ctrl-row ctrl-main">
-    <button class="btn-ctrl btn-lg btn-ccw"  data-key="z"          data-code="KeyZ"       data-kc="90">Z</button>
-    <button class="btn-ctrl btn-lg"          data-key="ArrowLeft"  data-code="ArrowLeft"  data-kc="37" data-repeat="1">←</button>
-    <button class="btn-ctrl btn-lg"          data-key="ArrowDown"  data-code="ArrowDown"  data-kc="40" data-repeat="1">↓</button>
-    <button class="btn-ctrl btn-lg"          data-key="ArrowRight" data-code="ArrowRight" data-kc="39" data-repeat="1">→</button>
-    <button class="btn-ctrl btn-lg btn-cw"   data-key="x"          data-code="KeyX"       data-kc="88">X</button>
-    <button class="btn-ctrl btn-drop"        data-key=" "          data-code="Space"      data-kc="32">▼▼</button>
+  <div class="ctrl-row row-main">
+    <button class="btn-ctrl btn-ccw"  data-key="z"           data-code="KeyZ"       data-kc="90">Z</button>
+    <button class="btn-ctrl"          data-key="ArrowLeft"   data-code="ArrowLeft"  data-kc="37">←</button>
+    <button class="btn-ctrl"          data-key="ArrowDown"   data-code="ArrowDown"  data-kc="40">↓</button>
+    <button class="btn-ctrl"          data-key="ArrowRight"  data-code="ArrowRight" data-kc="39">→</button>
+    <button class="btn-ctrl btn-cw"   data-key="x"           data-code="KeyX"       data-kc="88">X</button>
+    <button class="btn-ctrl btn-drop" data-key=" "           data-code="Space"      data-kc="32">▼▼</button>
   </div>
 </div>
 
@@ -282,152 +245,204 @@
 </div>
 
 <script>
-  // ---- Touch detection & gamepad show ----------------------------------
-  var isTouchDevice = false;
+// ---------------------------------------------------------------------------
+// Canvas scaling
+// ---------------------------------------------------------------------------
+// Emscripten calls canvas.style.width = X + 'px' after SDL_CreateWindow and
+// SDL_SetWindowSize, which overrides any CSS max-width/max-height.
+// We observe those mutations and immediately replace them with values that
+// fill the available viewport while preserving the logical aspect ratio.
 
-  function showControls() {
-    if (isTouchDevice) return;
-    isTouchDevice = true;
-    var ctrl = document.getElementById('controls');
-    ctrl.style.display = 'flex';
-    ctrl.classList.add('visible');
-    ctrl.style.flexDirection = 'column';
+var canvas   = document.getElementById('canvas');
+var ctrlEl   = document.getElementById('controls');
+var _fitting = false;   // re-entrancy guard
+
+function fitCanvas() {
+  var lw = canvas.width;
+  var lh = canvas.height;
+  if (!lw || !lh) return;
+
+  // Available space depends on orientation and whether controls are visible
+  var isLandMobile = window.matchMedia(
+      '(orientation: landscape) and (max-height: 480px)').matches;
+
+  var ctrlW = (isTouchDevice && isLandMobile)  ? ctrlEl.offsetWidth  : 0;
+  var ctrlH = (isTouchDevice && !isLandMobile) ? ctrlEl.offsetHeight : 0;
+
+  var availW = window.innerWidth  - ctrlW;
+  var availH = window.innerHeight - ctrlH;
+
+  var ratio = lw / lh;
+  var cssW, cssH;
+  if (availW / availH < ratio) {
+    cssW = availW;
+    cssH = availW / ratio;
+  } else {
+    cssH = availH;
+    cssW = availH * ratio;
   }
 
-  window.addEventListener('touchstart', showControls, { once: true, passive: true });
+  _fitting = true;
+  canvas.style.width  = Math.floor(cssW) + 'px';
+  canvas.style.height = Math.floor(cssH) + 'px';
+  _fitting = false;
+}
 
-  // ---- Audio unlock ----------------------------------------------------
-  var overlay   = document.getElementById('overlay');
-  var startBtn  = document.getElementById('start-btn');
-  var audioReady = false;
+// Watch for Emscripten resetting canvas inline styles (SDL_SetWindowSize etc.)
+new MutationObserver(function() {
+  if (!_fitting) fitCanvas();
+}).observe(canvas, { attributes: true, attributeFilter: ['style', 'width', 'height'] });
 
-  function unlockAudio() {
-    try {
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      if (Ctx) { var ac = new Ctx(); ac.resume().catch(function(){}); ac.close(); }
-    } catch(e) {}
-    audioReady = true;
-    overlay.style.display = 'none';
-    if (window.Module && Module.resumeMainLoop) Module.resumeMainLoop();
+window.addEventListener('resize', fitCanvas);
+
+// ---------------------------------------------------------------------------
+// Touch detection + show controls
+// ---------------------------------------------------------------------------
+var isTouchDevice = false;
+
+function showControls() {
+  if (isTouchDevice) return;
+  isTouchDevice = true;
+  ctrlEl.style.display = 'flex';
+  // Re-fit after layout reflow so ctrlEl.offsetHeight is correct
+  requestAnimationFrame(fitCanvas);
+}
+
+window.addEventListener('touchstart', showControls, { once: true, passive: true });
+
+// ---------------------------------------------------------------------------
+// Audio unlock
+// ---------------------------------------------------------------------------
+var overlay  = document.getElementById('overlay');
+var startBtn = document.getElementById('start-btn');
+
+function unlockAudio() {
+  try {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) { var ac = new Ctx(); ac.resume().catch(function(){}); ac.close(); }
+  } catch(e) {}
+  overlay.style.display = 'none';
+  if (window.Module && Module.resumeMainLoop) Module.resumeMainLoop();
+}
+
+overlay.addEventListener('click', unlockAudio);
+startBtn.addEventListener('click', function(e) { e.stopPropagation(); unlockAudio(); });
+
+// ---------------------------------------------------------------------------
+// Virtual gamepad — touch → keyboard events dispatched on document
+// (Emscripten SDL2 registers keyboard handlers on document, not canvas)
+// ---------------------------------------------------------------------------
+function fireKey(down, key, code, kc) {
+  document.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', {
+    key: key, code: code, keyCode: kc, which: kc,
+    bubbles: true, cancelable: true
+  }));
+}
+
+// Map: button element → Set of active touch identifiers
+var btnTouches = new Map();
+
+function btnPress(el, tid) {
+  if (!btnTouches.has(el)) btnTouches.set(el, new Set());
+  var ids = btnTouches.get(el);
+  if (ids.size === 0) {
+    el.classList.add('pressed');
+    fireKey(true, el.dataset.key, el.dataset.code, +el.dataset.kc);
   }
+  ids.add(tid);
+}
 
-  overlay.addEventListener('click', unlockAudio);
-  startBtn.addEventListener('click', function(e) { e.stopPropagation(); unlockAudio(); });
+function btnRelease(el, tid) {
+  if (!btnTouches.has(el)) return;
+  var ids = btnTouches.get(el);
+  ids.delete(tid);
+  if (ids.size === 0) {
+    el.classList.remove('pressed');
+    fireKey(false, el.dataset.key, el.dataset.code, +el.dataset.kc);
+  }
+}
 
-  // ---- Virtual gamepad key dispatch ------------------------------------
-  function fireKey(type, key, code, kc) {
-    var ev = new KeyboardEvent(type, {
-      key: key, code: code, keyCode: kc, which: kc,
-      bubbles: true, cancelable: true
+function targetBtn(x, y) {
+  var el = document.elementFromPoint(x, y);
+  return (el && el.classList.contains('btn-ctrl')) ? el : null;
+}
+
+ctrlEl.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  showControls();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    var b = targetBtn(t.clientX, t.clientY);
+    if (b) btnPress(b, t.identifier);
+  }
+}, { passive: false });
+
+ctrlEl.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t   = e.changedTouches[i];
+    var tid = t.identifier;
+    var nb  = targetBtn(t.clientX, t.clientY);
+    // Release any button this touch was previously on
+    btnTouches.forEach(function(ids, btn) {
+      if (ids.has(tid) && btn !== nb) btnRelease(btn, tid);
     });
-    document.dispatchEvent(ev);
+    if (nb) btnPress(nb, tid);
   }
+}, { passive: false });
 
-  // Track which touch identifiers are pressing each button to handle
-  // multi-touch correctly (e.g., hold ← while tapping rotate).
-  var btnTouches = new Map(); // button el -> Set of touch ids
-
-  function onBtnStart(el, touchId) {
-    if (!btnTouches.has(el)) btnTouches.set(el, new Set());
-    var ids = btnTouches.get(el);
-    if (ids.size === 0) {
-      // First touch on this button — fire keydown
-      el.classList.add('pressed');
-      fireKey('keydown', el.dataset.key, el.dataset.code, +el.dataset.kc);
-    }
-    ids.add(touchId);
+function releaseChangedTouches(e) {
+  e.preventDefault();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var tid = e.changedTouches[i].identifier;
+    btnTouches.forEach(function(ids, btn) {
+      if (ids.has(tid)) btnRelease(btn, tid);
+    });
   }
+}
 
-  function onBtnEnd(el, touchId) {
-    if (!btnTouches.has(el)) return;
-    var ids = btnTouches.get(el);
-    ids.delete(touchId);
-    if (ids.size === 0) {
-      el.classList.remove('pressed');
-      fireKey('keyup', el.dataset.key, el.dataset.code, +el.dataset.kc);
+ctrlEl.addEventListener('touchend',    releaseChangedTouches, { passive: false });
+ctrlEl.addEventListener('touchcancel', releaseChangedTouches, { passive: false });
+ctrlEl.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+// ---------------------------------------------------------------------------
+// Emscripten Module
+// ---------------------------------------------------------------------------
+var Module = {
+  canvas: canvas,
+
+  onRuntimeInitialized: function() {
+    // After SDL sets the canvas dimensions, fit it to the viewport
+    fitCanvas();
+  },
+
+  setStatus: function(text) {
+    var el = document.getElementById('status-text');
+    var pg = document.getElementById('progress');
+    if (!text) { el.textContent = ''; pg.style.display = 'none'; return; }
+    el.textContent = text;
+    var m = text.match(/(\d+(\.\d+)?)\/(\d+)/);
+    if (m) {
+      pg.style.display = 'block';
+      document.getElementById('progress-bar').style.width =
+        (parseFloat(m[1]) / parseFloat(m[3]) * 100) + '%';
     }
-  }
+  },
 
-  var controls = document.getElementById('controls');
+  monitorRunDependencies: function(left) {
+    if (left === 0) Module.setStatus('');
+  },
 
-  controls.addEventListener('touchstart', function(e) {
-    e.preventDefault();
-    showControls();
-    for (var i = 0; i < e.changedTouches.length; i++) {
-      var t   = e.changedTouches[i];
-      var el  = document.elementFromPoint(t.clientX, t.clientY);
-      if (el && el.classList.contains('btn-ctrl')) onBtnStart(el, t.identifier);
-    }
-  }, { passive: false });
+  print:    function(text) { console.log(text); },
+  printErr: function(text) { console.error(text); },
+};
 
-  controls.addEventListener('touchmove', function(e) {
-    e.preventDefault();
-    for (var i = 0; i < e.changedTouches.length; i++) {
-      var t      = e.changedTouches[i];
-      var newEl  = document.elementFromPoint(t.clientX, t.clientY);
-      // Find which button currently owns this touch
-      btnTouches.forEach(function(ids, btn) {
-        if (ids.has(t.identifier) && btn !== newEl) {
-          onBtnEnd(btn, t.identifier);
-        }
-      });
-      if (newEl && newEl.classList.contains('btn-ctrl')) {
-        onBtnStart(newEl, t.identifier);
-      }
-    }
-  }, { passive: false });
+canvas.addEventListener('webglcontextlost', function(e) {
+  alert('WebGL context lost. Reload the page.');
+  e.preventDefault();
+}, false);
 
-  function endAllTouches(e) {
-    e.preventDefault();
-    for (var i = 0; i < e.changedTouches.length; i++) {
-      var tid = e.changedTouches[i].identifier;
-      btnTouches.forEach(function(ids, btn) {
-        if (ids.has(tid)) onBtnEnd(btn, tid);
-      });
-    }
-  }
-
-  controls.addEventListener('touchend',    endAllTouches, { passive: false });
-  controls.addEventListener('touchcancel', endAllTouches, { passive: false });
-
-  // Prevent context menu on long-press (mobile)
-  controls.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-
-  // ---- Emscripten Module -----------------------------------------------
-  var Module = {
-    canvas: (function() {
-      var canvas = document.getElementById('canvas');
-      canvas.addEventListener('webglcontextlost', function(e) {
-        alert('WebGL context lost. Reload the page.');
-        e.preventDefault();
-      }, false);
-      return canvas;
-    })(),
-
-    setStatus: function(text) {
-      var el = document.getElementById('status-text');
-      var pg = document.getElementById('progress');
-      if (!text) { el.textContent = ''; pg.style.display = 'none'; return; }
-      el.textContent = text;
-      var m = text.match(/(\d+(\.\d+)?)\/(\d+)/);
-      if (m) {
-        var pct = (parseFloat(m[1]) / parseFloat(m[3])) * 100;
-        pg.style.display = 'block';
-        document.getElementById('progress-bar').style.width = pct + '%';
-      }
-    },
-
-    monitorRunDependencies: function(left) {
-      if (left === 0) Module.setStatus('');
-    },
-
-    onRuntimeInitialized: function() {},
-
-    print:    function(text) { console.log(text); },
-    printErr: function(text) { console.error(text); },
-  };
-
-  window.onerror = function(msg) { Module.setStatus('Error: ' + msg); };
+window.onerror = function(msg) { Module.setStatus('Error: ' + msg); };
 </script>
 
 {{{ SCRIPT }}}
