@@ -2,10 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>zezyi — falling blocks</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+    }
 
     body {
       background: #0a0a0f;
@@ -13,9 +23,17 @@
       font-family: monospace;
       display: flex;
       flex-direction: column;
+      align-items: stretch;
+      height: 100dvh;
+    }
+
+    /* ---- Canvas wrapper ------------------------------------------------- */
+    #canvas-wrap {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
       overflow: hidden;
     }
 
@@ -23,12 +41,12 @@
       display: block;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      /* Scale canvas to fit viewport while preserving aspect ratio */
-      max-width: 100vw;
-      max-height: 100vh;
+      max-width: 100%;
+      max-height: 100%;
+      touch-action: none;
     }
 
-    /* ---- Audio unlock overlay ---------------------------------------- */
+    /* ---- Audio unlock overlay ------------------------------------------- */
     #overlay {
       position: fixed;
       inset: 0;
@@ -40,20 +58,21 @@
       z-index: 10;
       cursor: pointer;
       user-select: none;
+      touch-action: manipulation;
     }
 
     #overlay h1 {
-      font-size: 2.4rem;
+      font-size: clamp(1.6rem, 6vw, 2.4rem);
       letter-spacing: 0.2em;
       color: #ffe066;
       text-transform: uppercase;
-      margin-bottom: 1.2rem;
+      margin-bottom: 1rem;
     }
 
     #overlay p {
-      font-size: 1rem;
+      font-size: clamp(0.85rem, 3vw, 1rem);
       color: #aaa;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
     }
 
     #overlay .btn {
@@ -62,17 +81,18 @@
       border: none;
       padding: 0.75rem 2.5rem;
       font-family: monospace;
-      font-size: 1.1rem;
+      font-size: clamp(0.9rem, 3.5vw, 1.1rem);
       font-weight: bold;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       cursor: pointer;
       border-radius: 2px;
+      touch-action: manipulation;
     }
 
-    #overlay .btn:hover { background: #ffd700; }
+    #overlay .btn:active { background: #ffd700; }
 
-    /* ---- Loading indicator ------------------------------------------- */
+    /* ---- Loading indicator ---------------------------------------------- */
     #status {
       position: fixed;
       bottom: 1rem;
@@ -101,18 +121,160 @@
       background: #ffe066;
       transition: width 0.15s ease;
     }
+
+    /* ---- Virtual gamepad ----------------------------------------------- */
+    #controls {
+      flex-shrink: 0;
+      display: none; /* shown only on touch devices via JS */
+      background: #0d0d14;
+      border-top: 1px solid #1e1e2e;
+      padding: 8px 10px env(safe-area-inset-bottom, 8px);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .ctrl-row:last-child { margin-bottom: 0; }
+
+    .ctrl-row.ctrl-aux {
+      justify-content: space-between;
+      padding: 0 4px;
+      margin-bottom: 4px;
+    }
+
+    .btn-ctrl {
+      background: #1a1a2e;
+      color: #ccc;
+      border: 1px solid #2a2a4a;
+      border-radius: 6px;
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.05s, transform 0.05s;
+      /* prevent text selection on long press */
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .btn-ctrl:active,
+    .btn-ctrl.pressed {
+      background: #2e2e55;
+      border-color: #ffe066;
+      color: #ffe066;
+      transform: scale(0.93);
+    }
+
+    /* Main action buttons */
+    .btn-ctrl.btn-lg {
+      width: 56px;
+      height: 56px;
+      font-size: 1.3rem;
+    }
+
+    /* Secondary/aux buttons */
+    .btn-ctrl.btn-sm {
+      width: 60px;
+      height: 34px;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* Hard drop — wider */
+    .btn-ctrl.btn-drop {
+      width: 72px;
+      height: 56px;
+      font-size: 1.1rem;
+    }
+
+    /* Rotate CCW — accent */
+    .btn-ctrl.btn-ccw { border-color: #6060aa; }
+    /* Rotate CW — accent */
+    .btn-ctrl.btn-cw  { border-color: #6060aa; }
+    /* Hold — teal tint */
+    .btn-ctrl.btn-hold { border-color: #2a5a5a; color: #7ee8e8; }
+    /* Pause */
+    .btn-ctrl.btn-pause { border-color: #5a4a1a; color: #ffe066; }
+
+    /* Landscape layout: controls become a side strip */
+    @media (orientation: landscape) and (max-height: 500px) {
+      body {
+        flex-direction: row;
+      }
+      #canvas-wrap {
+        flex: 1 1 0;
+        height: 100dvh;
+      }
+      #controls {
+        width: 160px;
+        flex-shrink: 0;
+        flex-direction: column;
+        border-top: none;
+        border-left: 1px solid #1e1e2e;
+        padding: 10px 8px;
+        overflow-y: auto;
+        display: none; /* shown by JS when touch detected */
+      }
+      #controls.visible {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+      }
+      .ctrl-row { flex-direction: column; gap: 5px; margin-bottom: 0; }
+      .ctrl-row.ctrl-main {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: center;
+      }
+      .btn-ctrl.btn-lg { width: 50px; height: 50px; }
+      .btn-ctrl.btn-drop { width: 50px; height: 50px; }
+    }
   </style>
 </head>
 <body>
 
-<!-- Audio unlock overlay — browser requires a user gesture before audio plays -->
+<!-- Audio unlock overlay -->
 <div id="overlay">
   <h1>zezyi</h1>
-  <p>click to start</p>
+  <p>tap to start</p>
   <button class="btn" id="start-btn">Play</button>
 </div>
 
-<canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+<div id="canvas-wrap">
+  <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+</div>
+
+<!-- Virtual gamepad (visible only on touch devices) -->
+<div id="controls">
+  <!-- Aux row: hold + pause -->
+  <div class="ctrl-row ctrl-aux">
+    <button class="btn-ctrl btn-sm btn-hold"  data-key="c"       data-code="KeyC"       data-kc="67">HOLD</button>
+    <button class="btn-ctrl btn-sm btn-pause" data-key="p"       data-code="KeyP"       data-kc="80">PAUSE</button>
+  </div>
+  <!-- Main row: CCW | ← ↓ → | CW | drop -->
+  <div class="ctrl-row ctrl-main">
+    <button class="btn-ctrl btn-lg btn-ccw"  data-key="z"          data-code="KeyZ"       data-kc="90">Z</button>
+    <button class="btn-ctrl btn-lg"          data-key="ArrowLeft"  data-code="ArrowLeft"  data-kc="37" data-repeat="1">←</button>
+    <button class="btn-ctrl btn-lg"          data-key="ArrowDown"  data-code="ArrowDown"  data-kc="40" data-repeat="1">↓</button>
+    <button class="btn-ctrl btn-lg"          data-key="ArrowRight" data-code="ArrowRight" data-kc="39" data-repeat="1">→</button>
+    <button class="btn-ctrl btn-lg btn-cw"   data-key="x"          data-code="KeyX"       data-kc="88">X</button>
+    <button class="btn-ctrl btn-drop"        data-key=" "          data-code="Space"      data-kc="32">▼▼</button>
+  </div>
+</div>
 
 <div id="status">
   <span id="status-text">Loading…</span>
@@ -120,43 +282,121 @@
 </div>
 
 <script>
-  // ---- Audio unlock -------------------------------------------------
+  // ---- Touch detection & gamepad show ----------------------------------
+  var isTouchDevice = false;
+
+  function showControls() {
+    if (isTouchDevice) return;
+    isTouchDevice = true;
+    var ctrl = document.getElementById('controls');
+    ctrl.style.display = 'flex';
+    ctrl.classList.add('visible');
+    ctrl.style.flexDirection = 'column';
+  }
+
+  window.addEventListener('touchstart', showControls, { once: true, passive: true });
+
+  // ---- Audio unlock ----------------------------------------------------
   var overlay   = document.getElementById('overlay');
   var startBtn  = document.getElementById('start-btn');
   var audioReady = false;
 
   function unlockAudio() {
-    // Create and immediately resume the AudioContext if it was suspended.
-    // SDL_mixer on Emscripten uses the global AudioContext.
     try {
-      var ctx = window.AudioContext || window.webkitAudioContext;
-      if (ctx) {
-        var ac = new ctx();
-        ac.resume().catch(function(){});
-        ac.close();
-      }
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) { var ac = new Ctx(); ac.resume().catch(function(){}); ac.close(); }
     } catch(e) {}
     audioReady = true;
     overlay.style.display = 'none';
-    // Notify Emscripten that we want to resume BGM (SDL may have started it
-    // before the gesture — calling resume() here helps browsers that block
-    // auto-play).
-    if (window.Module && Module.resumeMainLoop) {
-      Module.resumeMainLoop();
-    }
+    if (window.Module && Module.resumeMainLoop) Module.resumeMainLoop();
   }
 
   overlay.addEventListener('click', unlockAudio);
-  startBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    unlockAudio();
-  });
+  startBtn.addEventListener('click', function(e) { e.stopPropagation(); unlockAudio(); });
 
-  // ---- Emscripten Module configuration ------------------------------
+  // ---- Virtual gamepad key dispatch ------------------------------------
+  function fireKey(type, key, code, kc) {
+    var ev = new KeyboardEvent(type, {
+      key: key, code: code, keyCode: kc, which: kc,
+      bubbles: true, cancelable: true
+    });
+    document.dispatchEvent(ev);
+  }
+
+  // Track which touch identifiers are pressing each button to handle
+  // multi-touch correctly (e.g., hold ← while tapping rotate).
+  var btnTouches = new Map(); // button el -> Set of touch ids
+
+  function onBtnStart(el, touchId) {
+    if (!btnTouches.has(el)) btnTouches.set(el, new Set());
+    var ids = btnTouches.get(el);
+    if (ids.size === 0) {
+      // First touch on this button — fire keydown
+      el.classList.add('pressed');
+      fireKey('keydown', el.dataset.key, el.dataset.code, +el.dataset.kc);
+    }
+    ids.add(touchId);
+  }
+
+  function onBtnEnd(el, touchId) {
+    if (!btnTouches.has(el)) return;
+    var ids = btnTouches.get(el);
+    ids.delete(touchId);
+    if (ids.size === 0) {
+      el.classList.remove('pressed');
+      fireKey('keyup', el.dataset.key, el.dataset.code, +el.dataset.kc);
+    }
+  }
+
+  var controls = document.getElementById('controls');
+
+  controls.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    showControls();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t   = e.changedTouches[i];
+      var el  = document.elementFromPoint(t.clientX, t.clientY);
+      if (el && el.classList.contains('btn-ctrl')) onBtnStart(el, t.identifier);
+    }
+  }, { passive: false });
+
+  controls.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t      = e.changedTouches[i];
+      var newEl  = document.elementFromPoint(t.clientX, t.clientY);
+      // Find which button currently owns this touch
+      btnTouches.forEach(function(ids, btn) {
+        if (ids.has(t.identifier) && btn !== newEl) {
+          onBtnEnd(btn, t.identifier);
+        }
+      });
+      if (newEl && newEl.classList.contains('btn-ctrl')) {
+        onBtnStart(newEl, t.identifier);
+      }
+    }
+  }, { passive: false });
+
+  function endAllTouches(e) {
+    e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var tid = e.changedTouches[i].identifier;
+      btnTouches.forEach(function(ids, btn) {
+        if (ids.has(tid)) onBtnEnd(btn, tid);
+      });
+    }
+  }
+
+  controls.addEventListener('touchend',    endAllTouches, { passive: false });
+  controls.addEventListener('touchcancel', endAllTouches, { passive: false });
+
+  // Prevent context menu on long-press (mobile)
+  controls.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+  // ---- Emscripten Module -----------------------------------------------
   var Module = {
     canvas: (function() {
       var canvas = document.getElementById('canvas');
-      // Disable right-click context menu on canvas
       canvas.addEventListener('webglcontextlost', function(e) {
         alert('WebGL context lost. Reload the page.');
         e.preventDefault();
@@ -164,15 +404,10 @@
       return canvas;
     })(),
 
-    // Show loading progress
     setStatus: function(text) {
       var el = document.getElementById('status-text');
       var pg = document.getElementById('progress');
-      if (!text) {
-        el.textContent = '';
-        pg.style.display = 'none';
-        return;
-      }
+      if (!text) { el.textContent = ''; pg.style.display = 'none'; return; }
       el.textContent = text;
       var m = text.match(/(\d+(\.\d+)?)\/(\d+)/);
       if (m) {
@@ -183,27 +418,16 @@
     },
 
     monitorRunDependencies: function(left) {
-      if (left === 0) {
-        Module.setStatus('');
-      }
+      if (left === 0) Module.setStatus('');
     },
 
-    // Pause the main loop until the user clicks (audio unlock).
-    // The game renders a static frame on first load; gameplay starts when
-    // the overlay is dismissed.
-    onRuntimeInitialized: function() {
-      // Keep the main loop running (it will render menus fine without audio).
-      // Audio will auto-unlock once the user clicks the overlay.
-    },
+    onRuntimeInitialized: function() {},
 
-    print: function(text) { console.log(text); },
+    print:    function(text) { console.log(text); },
     printErr: function(text) { console.error(text); },
   };
 
-  // Catch unhandled errors from Emscripten
-  window.onerror = function(msg, url, line, col, err) {
-    Module.setStatus('Error: ' + msg);
-  };
+  window.onerror = function(msg) { Module.setStatus('Error: ' + msg); };
 </script>
 
 {{{ SCRIPT }}}
