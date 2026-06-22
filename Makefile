@@ -45,6 +45,17 @@ test_determinism: $(DETERM_SRC)
 	./test_determinism
 
 # -----------------------------------------------------------------------
+# Replay / ghost recording test (no SDL)
+# -----------------------------------------------------------------------
+REPLAY_SRC = tests/test_replay.c \
+             src/piece.c src/board.c src/randomizer.c \
+             src/rules.c src/highscore.c src/replay.c
+test_replay: $(REPLAY_SRC)
+	$(CC) -std=c11 $(WARN) -g -O0 \
+	    $(REPLAY_SRC) -Iinclude -DZEZYI_HEADLESS -o test_replay
+	./test_replay
+
+# -----------------------------------------------------------------------
 # WebAssembly / Emscripten build  →  docs/index.html
 # Usage: make web   (requires emscripten SDK: source emsdk_env.sh)
 # Deploy: push docs/ to GitHub and enable Pages from that folder.
@@ -68,7 +79,7 @@ web: $(GAME_SRC) web/shell.html
 	@echo "Web build ready: $(WEB_OUT)"
 
 clean:
-	rm -f $(TARGET) mitris test_logic test_determinism
+	rm -f $(TARGET) mitris test_logic test_determinism test_replay
 	rm -rf docs
 
-.PHONY: all release test test_determinism web clean
+.PHONY: all release test test_determinism test_replay web clean

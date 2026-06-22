@@ -7,4 +7,5 @@ emsdk/
 *.d
 test_logic
 test_determinism
+test_replay
 zezyi
