@@ -6,4 +6,5 @@ emsdk/
 *.obj
 *.d
 test_logic
+test_determinism
 zezyi

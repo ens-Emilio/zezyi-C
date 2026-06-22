@@ -159,8 +159,9 @@ typedef struct {
     int all_clear;     /* board was empty after last clear */
 
     /* Timing */
-    double gravity_accum, lock_accum;
-    double time_elapsed;         /* seconds from game start */
+    int64_t gravity_accum_ms;    /* accumulated gravity time (ms) */
+    int64_t lock_accum_ms;       /* accumulated lock delay time (ms) */
+    int64_t time_elapsed_ms;     /* total game time (ms) */
     int touching_ground;
     int lock_reset_count;
     int last_rot;                /* last action was a rotation (T-spin helper) */

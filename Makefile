@@ -34,6 +34,17 @@ test: $(TEST_SRC)
 	./test_logic
 
 # -----------------------------------------------------------------------
+# Determinism test — same seed must produce identical results (no SDL)
+# -----------------------------------------------------------------------
+DETERM_SRC = tests/test_determinism.c \
+             src/piece.c src/board.c src/randomizer.c \
+             src/rules.c src/highscore.c
+test_determinism: $(DETERM_SRC)
+	$(CC) -std=c11 $(WARN) -g -O0 \
+	    $(DETERM_SRC) -Iinclude -DZEZYI_HEADLESS -o test_determinism
+	./test_determinism
+
+# -----------------------------------------------------------------------
 # WebAssembly / Emscripten build  →  docs/index.html
 # Usage: make web   (requires emscripten SDK: source emsdk_env.sh)
 # Deploy: push docs/ to GitHub and enable Pages from that folder.
@@ -57,7 +68,7 @@ web: $(GAME_SRC) web/shell.html
 	@echo "Web build ready: $(WEB_OUT)"
 
 clean:
-	rm -f $(TARGET) mitris test_logic
+	rm -f $(TARGET) mitris test_logic test_determinism
 	rm -rf docs
 
-.PHONY: all release test web clean
+.PHONY: all release test test_determinism web clean

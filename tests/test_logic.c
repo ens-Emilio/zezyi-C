@@ -208,11 +208,11 @@ static void test_rules(void)
     for (int i = 0; i < 25; i++) game_try_move(&g, 0, 1);
     g.touching_ground = 1;
     g.lock_reset_count = LOCK_RESET_MAX;
-    g.lock_accum = 0.1;
-    double accum_before = g.lock_accum;
+    g.lock_accum_ms = 100;
+    int64_t accum_before = g.lock_accum_ms;
     game_try_move(&g, 1, 0);
-    /* lock_accum should NOT have been reset */
-    EXPECT(g.lock_accum >= accum_before, "lock_accum not reset at cap");
+    /* lock_accum_ms should NOT have been reset */
+    EXPECT(g.lock_accum_ms >= accum_before, "lock_accum_ms not reset at cap");
 }
 
 /* -----------------------------------------------------------------------
@@ -348,8 +348,8 @@ static void test_modes(void)
     game_init_for_mode(&g, 3, MODE_ULTRA);
     EXPECT(g.mode == MODE_ULTRA, "ultra mode set");
     /* Simulate time running out */
-    g.time_elapsed = ULTRA_TIME + 0.1;
-    if (g.mode == MODE_ULTRA && g.time_elapsed >= ULTRA_TIME)
+    g.time_elapsed_ms = (int64_t)(ULTRA_TIME * 1000) + 100;
+    if (g.mode == MODE_ULTRA && g.time_elapsed_ms >= (int64_t)(ULTRA_TIME * 1000))
         g.app_state = APP_RESULTS;
     EXPECT(g.app_state == APP_RESULTS, "ultra reaches APP_RESULTS at time limit");
 
@@ -386,18 +386,18 @@ static void test_highscore(void)
 
     /* Sprint: lower ms wins */
     game_init_for_mode(&g, 2, MODE_SPRINT);
-    g.time_elapsed  = 45.0;
+    g.time_elapsed_ms = 45000;
     g.hs_sprint_ms  = 0; /* first completion */
     improved        = hs_update(&g);
     EXPECT(improved == 1, "first sprint sets record");
     EXPECT(g.hs_sprint_ms == 45000, "sprint hs = 45000ms");
 
-    g.time_elapsed = 60.0; /* slower */
+    g.time_elapsed_ms = 60000; /* slower */
     improved       = hs_update(&g);
     EXPECT(improved == 0, "slower sprint not a record");
     EXPECT(g.hs_sprint_ms == 45000, "sprint hs unchanged");
 
-    g.time_elapsed = 40.0; /* faster */
+    g.time_elapsed_ms = 40000; /* faster */
     improved       = hs_update(&g);
     EXPECT(improved == 1, "faster sprint is new record");
     EXPECT(g.hs_sprint_ms == 40000, "sprint hs=40000ms");
