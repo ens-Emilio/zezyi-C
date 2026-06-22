@@ -10,3 +10,4 @@ test_determinism
 test_replay
 zezyi
 server/zezyi-server
+server/server
