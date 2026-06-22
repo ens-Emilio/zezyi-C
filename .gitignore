@@ -9,3 +9,4 @@ test_logic
 test_determinism
 test_replay
 zezyi
+server/zezyi-server
