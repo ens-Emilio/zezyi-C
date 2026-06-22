@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include <SDL2/SDL.h>
@@ -247,6 +248,9 @@ int app_run(void)
     AppCtx *ctx = &s_ctx;
 
     gameconfig_load(&ctx->cfg, CFG_PATH);
+
+    /* Force X11 on Linux — Wayland SDL2 driver drops keyboard events */
+    setenv("SDL_VIDEODRIVER", "x11", 0);
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
