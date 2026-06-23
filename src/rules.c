@@ -544,7 +544,9 @@ static void process_rotation(GameState *g, const InputSnapshot *in)
 
 static void apply_gravity(GameState *g)
 {
-    g->gravity_accum_ms += 1000 / 60;
+    g->gravity_accum_ms += TICK_MS;
+    if (g->tick % TICK_DRIFT_INTERVAL == 0)
+        g->gravity_accum_ms += TICK_DRIFT_CORRECT;
     int64_t interval = fall_interval_ms(g->level, g->mode);
     while (g->gravity_accum_ms >= interval) {
         if (!game_try_move(g, 0, 1)) {
@@ -558,7 +560,9 @@ static void apply_gravity(GameState *g)
 
 static void apply_lock_delay(GameState *g)
 {
-    g->lock_accum_ms += 1000 / 60;
+    g->lock_accum_ms += TICK_MS;
+    if (g->tick % TICK_DRIFT_INTERVAL == 0)
+        g->lock_accum_ms += TICK_DRIFT_CORRECT;
     if (g->lock_accum_ms >= (int64_t)(LOCK_DELAY * 1000))
         game_lock_piece(g);
 }
@@ -583,7 +587,9 @@ void game_tick(GameState *g, const InputSnapshot *in, double dt)
         return;
 
     g->tick++;
-    g->time_elapsed_ms += 1000 / 60;
+    g->time_elapsed_ms += TICK_MS;
+    if (g->tick % TICK_DRIFT_INTERVAL == 0)
+        g->time_elapsed_ms += TICK_DRIFT_CORRECT;
 
     /* Count inputs for APM */
     if (in) {

@@ -634,6 +634,7 @@ static void main_loop_iter(void)
 
         /* ---- Online VS (frame-sync) ------------------------------ */
         case APP_ONLINE_VS: {
+            /* Poll for opponent inputs */
             NetMessage msg;
             while (net_poll(ctx->net, &msg)) {
                 if (msg.type == NC_MSG_FRAME) {
@@ -650,8 +651,21 @@ static void main_loop_iter(void)
                 }
             }
 
+            /* Check for connection errors */
+            if (ctx->net && net_state(ctx->net) == NC_ERROR) {
+                net_disconnect(ctx->net);
+                ctx->net = NULL;
+                ctx->game.app_state = APP_MENU;
+                break;
+            }
+
+            /* Lockstep: only advance when we have opponent's input for
+             * the current frame (or a future frame — use the latest) */
             if (ctx->game.app_state == APP_ONLINE_VS &&
+                ctx->net &&
                 ctx->accumulator >= (1.0 / 60.0)) {
+
+                /* Pack local input */
                 uint8_t local_input = 0;
                 if (ctx->input.left)       local_input |= (1u << 0);
                 if (ctx->input.right)      local_input |= (1u << 1);
@@ -661,18 +675,28 @@ static void main_loop_iter(void)
                 if (ctx->input.hard_drop)  local_input |= (1u << 5);
                 if (ctx->input.hold)       local_input |= (1u << 6);
 
+                /* Send our input for this frame */
                 net_send_input(ctx->net, ctx->online_frame, local_input);
 
-                game_tick(&ctx->game, &ctx->input, 1.0 / 60.0);
-                ctx->accumulator -= 1.0 / 60.0;
-                ctx->online_frame++;
+                /* Wait for opponent's input for this frame (lockstep).
+                 * If we don't have it yet, don't advance — just accumulate.
+                 * Use opp_input_frame >= online_frame as the check.
+                 * The server buffers and relays, so eventually it arrives. */
+                if (ctx->opp_input_frame >= ctx->online_frame) {
+                    game_tick(&ctx->game, &ctx->input, 1.0 / 60.0);
+                    ctx->accumulator -= 1.0 / 60.0;
+                    ctx->online_frame++;
 
-                if (ctx->online_frame % 60 == 0) {
-                    uint32_t hash = (uint32_t)ctx->game.score ^
-                                    (uint32_t)ctx->game.total_lines ^
-                                    (uint32_t)ctx->game.tick;
-                    net_send_state(ctx->net, ctx->online_frame, hash);
+                    /* Send state hash every 60 frames for validation */
+                    if (ctx->online_frame % 60 == 0) {
+                        uint32_t hash = (uint32_t)ctx->game.score ^
+                                        (uint32_t)ctx->game.total_lines ^
+                                        (uint32_t)ctx->game.tick;
+                        net_send_state(ctx->net, ctx->online_frame, hash);
+                    }
                 }
+                /* If we don't have opp input yet, keep the accumulator
+                 * and wait. The game pauses until input arrives. */
             }
 
             if (ctx->input.back) {

@@ -102,12 +102,33 @@ const char *net_error(const NetContext *nc)
     return nc ? nc->error : "no context";
 }
 
+/* Escape a string for safe embedding inside a JSON string literal.
+ * Backslash-escapes " and \, and skips control characters (< 0x20). */
+static void json_escape(const char *in, char *out, size_t out_sz)
+{
+    size_t j = 0;
+    for (size_t i = 0; in[i] && j + 2 < out_sz; i++) {
+        if (in[i] == '"' || in[i] == '\\') {
+            if (j + 2 >= out_sz) break;
+            out[j++] = '\\';
+            out[j++] = in[i];
+        } else if ((unsigned char)in[i] < 0x20) {
+            continue;
+        } else {
+            out[j++] = in[i];
+        }
+    }
+    out[j] = '\0';
+}
+
 int net_send_join(NetContext *nc, const char *player_name)
 {
+    char escaped[64];
+    json_escape(player_name, escaped, sizeof(escaped));
     char buf[256];
     snprintf(buf, sizeof(buf),
         "{\"type\":\"join\",\"data\":{\"player_name\":\"%s\"}}",
-        player_name);
+        escaped);
     return send_line(nc, buf);
 }
 
@@ -122,10 +143,12 @@ int net_create_room(NetContext *nc, int private)
 
 int net_join_room(NetContext *nc, const char *room_id)
 {
+    char escaped[64];
+    json_escape(room_id, escaped, sizeof(escaped));
     char buf[256];
     snprintf(buf, sizeof(buf),
         "{\"type\":\"join_room\",\"data\":{\"room_id\":\"%s\"}}",
-        room_id);
+        escaped);
     return send_line(nc, buf);
 }
 
@@ -228,12 +251,18 @@ int net_poll(NetContext *nc, NetMessage *out)
     if (n < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
             set_error(nc, "connection lost");
-            return 0;
+            out->type = NC_MSG_ERROR;
+            strncpy(out->error_msg, "connection lost",
+                    sizeof(out->error_msg) - 1);
+            return 1;
         }
         /* No new data — still check buffer for a complete line below. */
     } else if (n == 0) {
         set_error(nc, "server closed connection");
-        return 0;
+        out->type = NC_MSG_ERROR;
+        strncpy(out->error_msg, "server closed connection",
+                sizeof(out->error_msg) - 1);
+        return 1;
     } else {
         nc->recv_len += (int)n;
         nc->recv_buf[nc->recv_len] = '\0';

@@ -8,6 +8,12 @@
 #define NEXT_VISIBLE  5
 #define CELL_PX      32
 
+/* Tick timing: 16 ms per tick.  Drift correction of +4 ms every 6 ticks
+ * yields exactly 1000 ms per 60 ticks (6*16 + 4 = 100 ms per 6 ticks). */
+#define TICK_MS             16
+#define TICK_DRIFT_CORRECT   4
+#define TICK_DRIFT_INTERVAL  6
+
 /* Lock-delay constants */
 #define LOCK_RESET_MAX   15
 #define LOCK_DELAY       0.5
