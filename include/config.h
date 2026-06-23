@@ -8,6 +8,12 @@
 #define NEXT_VISIBLE  5
 #define CELL_PX      32
 
+/* Tick timing: 16 ms per tick.  Drift correction of +4 ms every 6 ticks
+ * yields exactly 1000 ms per 60 ticks (6*16 + 4 = 100 ms per 6 ticks). */
+#define TICK_MS             16
+#define TICK_DRIFT_CORRECT   4
+#define TICK_DRIFT_INTERVAL  6
+
 /* Lock-delay constants */
 #define LOCK_RESET_MAX   15
 #define LOCK_DELAY       0.5
@@ -87,7 +93,11 @@ typedef enum {
     APP_PLAYING,
     APP_PAUSED,
     APP_GAME_OVER,
-    APP_RESULTS
+    APP_RESULTS,
+    APP_ONLINE_MENU,
+    APP_ONLINE_LOBBY,
+    APP_ONLINE_VS,
+    APP_ONLINE_RESULT
 } AppState;
 
 /* Contextual tips — set by rules.c, displayed by render_sdl.c */
@@ -159,8 +169,9 @@ typedef struct {
     int all_clear;     /* board was empty after last clear */
 
     /* Timing */
-    double gravity_accum, lock_accum;
-    double time_elapsed;         /* seconds from game start */
+    int64_t gravity_accum_ms;    /* accumulated gravity time (ms) */
+    int64_t lock_accum_ms;       /* accumulated lock delay time (ms) */
+    int64_t time_elapsed_ms;     /* total game time (ms) */
     int touching_ground;
     int lock_reset_count;
     int last_rot;                /* last action was a rotation (T-spin helper) */

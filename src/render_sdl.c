@@ -562,17 +562,17 @@ static void render_left_panel(SDL_Renderer *r, const GameState *g)
         SDL_Color tc = COLOR_VALUE;
 
         if (g->mode == MODE_ULTRA) {
-            double left = ULTRA_TIME - g->time_elapsed;
+            double left = ULTRA_TIME - (double)g->time_elapsed_ms / 1000.0;
             if (left < 0.0) left = 0.0;
             format_time_str(left, buf, sizeof(buf));
             if (left <= 30.0 && (now % 500u) < 250u) tc = COLOR_DANGER;
         } else if (g->mode == MODE_BLITZ) {
-            double left = BLITZ_TIME - g->time_elapsed;
+            double left = BLITZ_TIME - (double)g->time_elapsed_ms / 1000.0;
             if (left < 0.0) left = 0.0;
             format_time_str(left, buf, sizeof(buf));
             if (left <= 10.0 && (now % 500u) < 250u) tc = COLOR_DANGER;
         } else {
-            format_time_str(g->time_elapsed, buf, sizeof(buf));
+            format_time_str((double)g->time_elapsed_ms / 1000.0, buf, sizeof(buf));
         }
 
         y += render_hud_row(r, x + pad, y,
@@ -1196,7 +1196,7 @@ static void render_results(SDL_Renderer *r, const GameState *g)
         SDL_SetRenderDrawColor(r, 180, 180, 200, 255);
         draw_str(r, lbl_time, lx, hy, fmd);
         SDL_SetRenderDrawColor(r, 100, 220, 100, 255);
-        draw_time(r, g->time_elapsed, vx, hy, fmd);
+        draw_time(r, (double)g->time_elapsed_ms / 1000.0, vx, hy, fmd);
         hy += 7 * fmd + pad;
     }
 
@@ -1206,7 +1206,7 @@ static void render_results(SDL_Renderer *r, const GameState *g)
         if (g->mode == MODE_MARATHON && g->score == g->hs_marathon && g->score > 0)
             is_record = 1;
         if (g->mode == MODE_SPRINT &&
-            (int)(g->time_elapsed * 1000) == g->hs_sprint_ms && g->hs_sprint_ms > 0)
+            (int)g->time_elapsed_ms == g->hs_sprint_ms && g->hs_sprint_ms > 0)
             is_record = 1;
         if (g->mode == MODE_ULTRA && g->score == g->hs_ultra && g->score > 0)
             is_record = 1;
@@ -1215,7 +1215,7 @@ static void render_results(SDL_Renderer *r, const GameState *g)
         if (g->mode == MODE_SURVIVAL && g->score == g->hs_survival && g->score > 0)
             is_record = 1;
         if (g->mode == MODE_CHEESE &&
-            (int)(g->time_elapsed * 1000) == g->hs_cheese_ms && g->hs_cheese_ms > 0)
+            (int)g->time_elapsed_ms == g->hs_cheese_ms && g->hs_cheese_ms > 0)
             is_record = 1;
         if (is_record) {
             hy += pad;
@@ -1285,8 +1285,8 @@ static void render_results(SDL_Renderer *r, const GameState *g)
     hy += 7 * fsm + 3;
 
     /* APM */
-    if (g->time_elapsed > 0.5) {
-        double minutes = g->time_elapsed / 60.0;
+    if (g->time_elapsed_ms > 500) {
+        double minutes = (double)g->time_elapsed_ms / 60000.0;
         int apm = (int)((double)g->stat_actions / minutes);
         SDL_SetRenderDrawColor(r, 100, 110, 140, 255);
         const char *apm_lbl = i18n(I18N_APM);
@@ -1337,6 +1337,8 @@ void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)
 
     switch (g->app_state) {
         case APP_MENU:
+        case APP_ONLINE_MENU:
+        case APP_ONLINE_LOBBY:
             render_menu(r, g);
             break;
         case APP_NAME_ENTRY:
@@ -1354,9 +1356,11 @@ void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)
         case APP_PLAYING:
         case APP_PAUSED:
         case APP_GAME_OVER:
+        case APP_ONLINE_VS:
             render_playing(r, g);
             break;
         case APP_RESULTS:
+        case APP_ONLINE_RESULT:
             render_results(r, g);
             break;
     }

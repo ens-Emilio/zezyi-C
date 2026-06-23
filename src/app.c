@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <string.h>
 #include <SDL2/SDL.h>
@@ -10,6 +11,7 @@
 #include "render_sdl.h"
 #include "time_step.h"
 #include "highscore.h"
+#include "netcode.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -231,6 +233,12 @@ typedef struct {
     double        accumulator;
     uint64_t      prev;
     int           running;
+    NetContext   *net;
+    int           online_frame;
+    uint8_t       opp_input;
+    int           opp_input_frame;
+    char          room_id[16];
+    char          opponent_name[32];
 } AppCtx;
 
 static AppCtx s_ctx;
@@ -247,6 +255,9 @@ int app_run(void)
     AppCtx *ctx = &s_ctx;
 
     gameconfig_load(&ctx->cfg, CFG_PATH);
+
+    /* Force X11 on Linux — Wayland SDL2 driver drops keyboard events */
+    setenv("SDL_VIDEODRIVER", "x11", 0);
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
@@ -310,6 +321,10 @@ int app_run(void)
 #else
     while (ctx->running && !ctx->input.quit) {
         main_loop_iter();
+    }
+    if (ctx->net) {
+        net_disconnect(ctx->net);
+        ctx->net = NULL;
     }
     audio_shutdown();
     render_shutdown(ctx->renderer, ctx->window);
@@ -397,6 +412,12 @@ static void main_loop_iter(void)
             if (ctx->input.settings) {
                 ctx->game.app_state = APP_SETTINGS;
                 ctx->game.settings_cursor = 0;
+                break;
+            }
+
+            /* Open online menu */
+            if (ctx->input.rotate_cw) {
+                ctx->game.app_state = APP_ONLINE_MENU;
                 break;
             }
 
@@ -557,6 +578,147 @@ static void main_loop_iter(void)
             if (ctx->input.hard_drop || ctx->input.back)
                 go_to_menu(&ctx->game, &ctx->accumulator);
             break;
+
+        /* ---- Online Menu ----------------------------------------- */
+        case APP_ONLINE_MENU:
+            if (ctx->input.back) {
+                ctx->game.app_state = APP_MENU;
+                break;
+            }
+            if (ctx->input.hard_drop) {
+                if (!ctx->net) {
+                    ctx->net = net_connect("localhost", 8080);
+                    if (ctx->net) {
+                        net_send_join(ctx->net, ctx->cfg.player_name);
+                        net_create_room(ctx->net, 0);
+                        ctx->game.app_state = APP_ONLINE_LOBBY;
+                    }
+                }
+                break;
+            }
+            break;
+
+        /* ---- Online Lobby ---------------------------------------- */
+        case APP_ONLINE_LOBBY: {
+            NetMessage msg;
+            while (net_poll(ctx->net, &msg)) {
+                if (msg.type == NC_MSG_START) {
+                    game_init_for_mode(&ctx->game, msg.seed, MODE_MARATHON);
+                    strncpy(ctx->opponent_name, msg.opponent,
+                            sizeof(ctx->opponent_name) - 1);
+                    ctx->opponent_name[sizeof(ctx->opponent_name) - 1] = '\0';
+                    ctx->online_frame = 0;
+                    ctx->opp_input = 0;
+                    ctx->opp_input_frame = -1;
+                    ctx->game.app_state = APP_ONLINE_VS;
+                    ctx->accumulator = 0.0;
+                    ctx->prev = time_now_ms();
+                    break;
+                }
+                if (msg.type == NC_MSG_ERROR) {
+                    net_disconnect(ctx->net);
+                    ctx->net = NULL;
+                    ctx->game.app_state = APP_MENU;
+                    break;
+                }
+            }
+            if (ctx->input.back) {
+                if (ctx->net) {
+                    net_disconnect(ctx->net);
+                    ctx->net = NULL;
+                }
+                ctx->game.app_state = APP_MENU;
+            }
+            break;
+        }
+
+        /* ---- Online VS (frame-sync) ------------------------------ */
+        case APP_ONLINE_VS: {
+            /* Poll for opponent inputs */
+            NetMessage msg;
+            while (net_poll(ctx->net, &msg)) {
+                if (msg.type == NC_MSG_FRAME) {
+                    ctx->opp_input = msg.input;
+                    ctx->opp_input_frame = msg.frame;
+                } else if (msg.type == NC_MSG_END) {
+                    ctx->game.app_state = APP_ONLINE_RESULT;
+                    break;
+                } else if (msg.type == NC_MSG_ERROR) {
+                    net_disconnect(ctx->net);
+                    ctx->net = NULL;
+                    ctx->game.app_state = APP_MENU;
+                    break;
+                }
+            }
+
+            /* Check for connection errors */
+            if (ctx->net && net_state(ctx->net) == NC_ERROR) {
+                net_disconnect(ctx->net);
+                ctx->net = NULL;
+                ctx->game.app_state = APP_MENU;
+                break;
+            }
+
+            /* Lockstep: only advance when we have opponent's input for
+             * the current frame (or a future frame — use the latest) */
+            if (ctx->game.app_state == APP_ONLINE_VS &&
+                ctx->net &&
+                ctx->accumulator >= (1.0 / 60.0)) {
+
+                /* Pack local input */
+                uint8_t local_input = 0;
+                if (ctx->input.left)       local_input |= (1u << 0);
+                if (ctx->input.right)      local_input |= (1u << 1);
+                if (ctx->input.down)        local_input |= (1u << 2);
+                if (ctx->input.rotate_cw)   local_input |= (1u << 3);
+                if (ctx->input.rotate_ccw)  local_input |= (1u << 4);
+                if (ctx->input.hard_drop)  local_input |= (1u << 5);
+                if (ctx->input.hold)       local_input |= (1u << 6);
+
+                /* Send our input for this frame */
+                net_send_input(ctx->net, ctx->online_frame, local_input);
+
+                /* Wait for opponent's input for this frame (lockstep).
+                 * If we don't have it yet, don't advance — just accumulate.
+                 * Use opp_input_frame >= online_frame as the check.
+                 * The server buffers and relays, so eventually it arrives. */
+                if (ctx->opp_input_frame >= ctx->online_frame) {
+                    game_tick(&ctx->game, &ctx->input, 1.0 / 60.0);
+                    ctx->accumulator -= 1.0 / 60.0;
+                    ctx->online_frame++;
+
+                    /* Send state hash every 60 frames for validation */
+                    if (ctx->online_frame % 60 == 0) {
+                        uint32_t hash = (uint32_t)ctx->game.score ^
+                                        (uint32_t)ctx->game.total_lines ^
+                                        (uint32_t)ctx->game.tick;
+                        net_send_state(ctx->net, ctx->online_frame, hash);
+                    }
+                }
+                /* If we don't have opp input yet, keep the accumulator
+                 * and wait. The game pauses until input arrives. */
+            }
+
+            if (ctx->input.back) {
+                if (ctx->net) {
+                    net_disconnect(ctx->net);
+                    ctx->net = NULL;
+                }
+                go_to_menu(&ctx->game, &ctx->accumulator);
+            }
+            break;
+        }
+
+        /* ---- Online Result --------------------------------------- */
+        case APP_ONLINE_RESULT:
+            if (ctx->input.hard_drop || ctx->input.back) {
+                if (ctx->net) {
+                    net_disconnect(ctx->net);
+                    ctx->net = NULL;
+                }
+                go_to_menu(&ctx->game, &ctx->accumulator);
+            }
+            break;
     }
 
     ctx->game.audio_events = 0;
@@ -578,9 +740,12 @@ static void main_loop_iter(void)
             case APP_CONFIRM:
             case APP_MODE_INFO:
             case APP_MENU:
+            case APP_ONLINE_MENU:
+            case APP_ONLINE_LOBBY:
                 audio_play_bgm("assets/bgm/theme_menu.ogg", -1);
                 break;
             case APP_PLAYING:
+            case APP_ONLINE_VS:
                 if (prev_state == APP_PAUSED)
                     audio_resume_bgm();
                 else
@@ -591,6 +756,7 @@ static void main_loop_iter(void)
                 break;
             case APP_GAME_OVER:
             case APP_RESULTS:
+            case APP_ONLINE_RESULT:
                 audio_stop_bgm();
                 break;
         }

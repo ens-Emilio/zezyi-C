@@ -14,12 +14,12 @@
  * Zen: fixed speed level 0 (relaxing)
  * ---------------------------------------------------------------------- */
 
-static double fall_interval(int level, GameMode mode)
+static int64_t fall_interval_ms(int level, GameMode mode)
 {
-    if (mode == MODE_ZEN) return 1.0; /* constant slow gravity */
+    if (mode == MODE_ZEN) return 1000;
 
-    double interval = 1.0 - (double)level * 0.08;
-    if (interval < 0.05) interval = 0.05;
+    int64_t interval = 1000 - (int64_t)level * 80;
+    if (interval < 50) interval = 50;
     return interval;
 }
 
@@ -145,8 +145,8 @@ void game_spawn_next(GameState *g, const InputSnapshot *in)
     g->current     = piece_make(kind, -1, -1);
 
     g->hold_used        = 0;
-    g->gravity_accum    = 0.0;
-    g->lock_accum       = 0.0;
+    g->gravity_accum_ms = 0;
+    g->lock_accum_ms    = 0;
     g->touching_ground  = 0;
     g->lock_reset_count = 0;
     g->soft_drop_cells  = 0;
@@ -279,8 +279,8 @@ void game_hold(GameState *g)
         game_spawn_next(g, NULL);
     } else {
         g->current         = piece_make(prev, -1, -1);
-        g->gravity_accum   = 0.0;
-        g->lock_accum      = 0.0;
+        g->gravity_accum_ms = 0;
+        g->lock_accum_ms    = 0;
         g->touching_ground = 0;
         g->lock_reset_count = 0;
         g->last_rot        = 0;
@@ -411,9 +411,9 @@ static void game_reset(GameState *g, uint32_t seed)
     g->b2b              = 0;
     g->tspin            = 0;
     g->all_clear        = 0;
-    g->gravity_accum    = 0.0;
-    g->lock_accum       = 0.0;
-    g->time_elapsed     = 0.0;
+    g->gravity_accum_ms = 0;
+    g->lock_accum_ms    = 0;
+    g->time_elapsed_ms  = 0;
     g->touching_ground  = 0;
     g->lock_reset_count = 0;
     g->last_rot         = 0;
@@ -507,7 +507,7 @@ static void process_movement(GameState *g, const InputSnapshot *in)
         if (game_try_move(g, -1, 0)) {
             g->audio_events |= AUDIO_EVT_MOVE;
             if (g->touching_ground && g->lock_reset_count < LOCK_RESET_MAX) {
-                g->lock_accum = 0.0;
+                g->lock_accum_ms = 0;
                 g->lock_reset_count++;
             }
         } else {
@@ -518,7 +518,7 @@ static void process_movement(GameState *g, const InputSnapshot *in)
         if (game_try_move(g, 1, 0)) {
             g->audio_events |= AUDIO_EVT_MOVE;
             if (g->touching_ground && g->lock_reset_count < LOCK_RESET_MAX) {
-                g->lock_accum = 0.0;
+                g->lock_accum_ms = 0;
                 g->lock_reset_count++;
             }
         } else {
@@ -536,7 +536,7 @@ static void process_rotation(GameState *g, const InputSnapshot *in)
     if (rotated) {
         g->audio_events |= AUDIO_EVT_ROTATE;
         if (g->touching_ground && g->lock_reset_count < LOCK_RESET_MAX) {
-            g->lock_accum = 0.0;
+            g->lock_accum_ms = 0;
             g->lock_reset_count++;
         }
     }
@@ -544,22 +544,26 @@ static void process_rotation(GameState *g, const InputSnapshot *in)
 
 static void apply_gravity(GameState *g)
 {
-    g->gravity_accum += 1.0 / 60.0;
-    double interval = fall_interval(g->level, g->mode);
-    while (g->gravity_accum >= interval) {
+    g->gravity_accum_ms += TICK_MS;
+    if (g->tick % TICK_DRIFT_INTERVAL == 0)
+        g->gravity_accum_ms += TICK_DRIFT_CORRECT;
+    int64_t interval = fall_interval_ms(g->level, g->mode);
+    while (g->gravity_accum_ms >= interval) {
         if (!game_try_move(g, 0, 1)) {
             g->touching_ground = 1;
-            g->gravity_accum   = 0.0;
+            g->gravity_accum_ms = 0;
             break;
         }
-        g->gravity_accum -= interval;
+        g->gravity_accum_ms -= interval;
     }
 }
 
 static void apply_lock_delay(GameState *g)
 {
-    g->lock_accum += 1.0 / 60.0;
-    if (g->lock_accum >= LOCK_DELAY)
+    g->lock_accum_ms += TICK_MS;
+    if (g->tick % TICK_DRIFT_INTERVAL == 0)
+        g->lock_accum_ms += TICK_DRIFT_CORRECT;
+    if (g->lock_accum_ms >= (int64_t)(LOCK_DELAY * 1000))
         game_lock_piece(g);
 }
 
@@ -583,7 +587,9 @@ void game_tick(GameState *g, const InputSnapshot *in, double dt)
         return;
 
     g->tick++;
-    g->time_elapsed += 1.0 / 60.0;
+    g->time_elapsed_ms += TICK_MS;
+    if (g->tick % TICK_DRIFT_INTERVAL == 0)
+        g->time_elapsed_ms += TICK_DRIFT_CORRECT;
 
     /* Count inputs for APM */
     if (in) {
@@ -596,13 +602,13 @@ void game_tick(GameState *g, const InputSnapshot *in, double dt)
     }
 
     /* Timed-end modes */
-    if (g->mode == MODE_ULTRA && g->time_elapsed >= ULTRA_TIME) {
+    if (g->mode == MODE_ULTRA && g->time_elapsed_ms >= (int64_t)(ULTRA_TIME * 1000)) {
         (void)hs_update(g);
         hs_save(g);
         g->app_state = APP_RESULTS;
         return;
     }
-    if (g->mode == MODE_BLITZ && g->time_elapsed >= BLITZ_TIME) {
+    if (g->mode == MODE_BLITZ && g->time_elapsed_ms >= (int64_t)(BLITZ_TIME * 1000)) {
         (void)hs_update(g);
         hs_save(g);
         g->app_state = APP_RESULTS;
@@ -655,7 +661,7 @@ void game_tick(GameState *g, const InputSnapshot *in, double dt)
     if (in->down) {
         if (game_try_move(g, 0, 1)) {
             if (g->mode != MODE_ZEN) g->soft_drop_cells++;
-            g->gravity_accum    = 0.0;
+            g->gravity_accum_ms = 0;
             g->audio_events    |= AUDIO_EVT_SOFT_DROP;
         }
     }

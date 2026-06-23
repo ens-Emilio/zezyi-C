@@ -6,4 +6,8 @@ emsdk/
 *.obj
 *.d
 test_logic
+test_determinism
+test_replay
 zezyi
+server/zezyi-server
+server/server

@@ -143,7 +143,7 @@ int hs_update(GameState *g)
             break;
 
         case MODE_SPRINT:
-            ms = (int)(g->time_elapsed * 1000.0);
+            ms = (int)g->time_elapsed_ms;
             if (ms > 0 && (g->hs_sprint_ms == 0 || ms < g->hs_sprint_ms)) {
                 g->hs_sprint_ms = ms;
                 improved = 1;
@@ -172,7 +172,7 @@ int hs_update(GameState *g)
             break;
 
         case MODE_CHEESE:
-            ms = (int)(g->time_elapsed * 1000.0);
+            ms = (int)g->time_elapsed_ms;
             if (ms > 0 && (g->hs_cheese_ms == 0 || ms < g->hs_cheese_ms)) {
                 g->hs_cheese_ms = ms;
                 improved = 1;
