@@ -10,8 +10,18 @@ const (
 	RoomMaxPlayers = 2
 )
 
+// PlayerClient is the common interface for WebSocket and TCP clients,
+// allowing Room to work with either transport transparently.
+type PlayerClient interface {
+	sendJSON(Message)
+	sendError(string)
+	PlayerName() string
+	Room() *Room
+	SetRoom(*Room)
+}
+
 type Player struct {
-	client *Client
+	client PlayerClient
 	ready  bool
 }
 
@@ -23,21 +33,23 @@ type Room struct {
 	sync      *FrameSync
 	validator *Validator
 	started   bool
+	mm        *Matchmaker
 }
 
-func NewRoom(id string, private bool) *Room {
+func NewRoom(id string, private bool, mm *Matchmaker) *Room {
 	return &Room{
 		ID:      id,
 		Private: private,
 		sync:    NewFrameSync(),
+		mm:      mm,
 	}
 }
 
-func (r *Room) Join(c *Client) bool {
+func (r *Room) Join(c PlayerClient) bool {
 	// Leave previous room BEFORE acquiring new room's lock (prevents AB-BA deadlock)
-	if c.room != nil && c.room != r {
-		c.room.Leave(c)
-		c.room = nil
+	if c.Room() != nil && c.Room() != r {
+		c.Room().Leave(c)
+		c.SetRoom(nil)
 	}
 
 	r.mu.Lock()
@@ -51,13 +63,13 @@ func (r *Room) Join(c *Client) bool {
 	r.players = append(r.players, &Player{client: c, ready: false})
 
 	log.Printf("room %s: %s joined (%d/%d)",
-		r.ID, c.playerName, len(r.players), RoomMaxPlayers)
+		r.ID, c.PlayerName(), len(r.players), RoomMaxPlayers)
 
 	r.broadcastRoomState()
 	return true
 }
 
-func (r *Room) Leave(c *Client) {
+func (r *Room) Leave(c PlayerClient) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -69,7 +81,7 @@ func (r *Room) Leave(c *Client) {
 	}
 
 	log.Printf("room %s: %s left (%d/%d)",
-		r.ID, c.playerName, len(r.players), RoomMaxPlayers)
+		r.ID, c.PlayerName(), len(r.players), RoomMaxPlayers)
 
 	if r.started {
 		for _, p := range r.players {
@@ -86,10 +98,11 @@ func (r *Room) Leave(c *Client) {
 
 	if len(r.players) == 0 {
 		r.started = false
+		go r.mm.RemoveRoom(r.ID)
 	}
 }
 
-func (r *Room) SetReady(c *Client, ready bool) {
+func (r *Room) SetReady(c PlayerClient, ready bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -129,7 +142,7 @@ func (r *Room) startMatch() {
 
 	opponentNames := make([]string, len(r.players))
 	for i, p := range r.players {
-		opponentNames[i] = p.client.playerName
+		opponentNames[i] = p.client.PlayerName()
 	}
 
 	for i, p := range r.players {
@@ -148,7 +161,7 @@ func (r *Room) startMatch() {
 	log.Printf("room %s: match started (seed=%d)", r.ID, seed)
 }
 
-func (r *Room) HandleInput(c *Client, data InputData) {
+func (r *Room) HandleInput(c PlayerClient, data InputData) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -171,7 +184,7 @@ func (r *Room) HandleInput(c *Client, data InputData) {
 	r.relayFrames()
 }
 
-func (r *Room) HandleState(c *Client, data StateData) {
+func (r *Room) HandleState(c PlayerClient, data StateData) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -190,7 +203,7 @@ func (r *Room) HandleState(c *Client, data StateData) {
 
 	if !valid {
 		log.Printf("room %s: anti-cheat flag from %s at frame %d",
-			r.ID, c.playerName, data.Frame)
+			r.ID, c.PlayerName(), data.Frame)
 	}
 
 	c.sendJSON(Message{
@@ -235,7 +248,7 @@ func (r *Room) broadcastRoomState() {
 	players := make([]PlayerInfo, len(r.players))
 	for i, p := range r.players {
 		players[i] = PlayerInfo{
-			Name:  p.client.playerName,
+			Name:  p.client.PlayerName(),
 			Ready: p.ready,
 		}
 	}

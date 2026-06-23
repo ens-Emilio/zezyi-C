@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"os"
 
@@ -38,8 +39,34 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
+	tcpPort := os.Getenv("TCP_PORT")
+	if tcpPort == "" {
+		tcpPort = "8081"
+	}
+	startTCPServer(tcpPort, mm)
+
 	log.Printf("zezyi server listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func startTCPServer(port string, mm *Matchmaker) {
+	ln, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		log.Fatalf("TCP listen failed: %v", err)
+	}
+	log.Printf("zezyi TCP server listening on :%s", port)
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				log.Printf("TCP accept error: %v", err)
+				continue
+			}
+			client := NewTCPClient(conn, mm)
+			go client.readPump()
+			go client.writePump()
+		}
+	}()
 }

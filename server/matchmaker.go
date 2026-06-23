@@ -19,7 +19,7 @@ func NewMatchmaker() *Matchmaker {
 
 func (mm *Matchmaker) CreateRoom(private bool) *Room {
 	id := generateRoomID()
-	room := NewRoom(id, private)
+	room := NewRoom(id, private, mm)
 
 	mm.mu.Lock()
 	mm.rooms[id] = room

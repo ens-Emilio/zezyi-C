@@ -180,3 +180,7 @@ func (c *Client) sendError(msg string) {
 		Data: mustMarshal(ErrorData{Message: msg}),
 	})
 }
+
+func (c *Client) PlayerName() string { return c.playerName }
+func (c *Client) Room() *Room        { return c.room }
+func (c *Client) SetRoom(r *Room)    { c.room = r }
