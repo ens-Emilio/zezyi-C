@@ -87,7 +87,11 @@ typedef enum {
     APP_PLAYING,
     APP_PAUSED,
     APP_GAME_OVER,
-    APP_RESULTS
+    APP_RESULTS,
+    APP_ONLINE_MENU,
+    APP_ONLINE_LOBBY,
+    APP_ONLINE_VS,
+    APP_ONLINE_RESULT
 } AppState;
 
 /* Contextual tips — set by rules.c, displayed by render_sdl.c */

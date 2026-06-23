@@ -1337,6 +1337,8 @@ void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)
 
     switch (g->app_state) {
         case APP_MENU:
+        case APP_ONLINE_MENU:
+        case APP_ONLINE_LOBBY:
             render_menu(r, g);
             break;
         case APP_NAME_ENTRY:
@@ -1354,9 +1356,11 @@ void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)
         case APP_PLAYING:
         case APP_PAUSED:
         case APP_GAME_OVER:
+        case APP_ONLINE_VS:
             render_playing(r, g);
             break;
         case APP_RESULTS:
+        case APP_ONLINE_RESULT:
             render_results(r, g);
             break;
     }
