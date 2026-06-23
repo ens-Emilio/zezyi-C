@@ -125,6 +125,8 @@ func (r *Room) startMatch() {
 		seed = 1
 	}
 
+	r.validator = NewValidator(seed)
+
 	opponentNames := make([]string, len(r.players))
 	for i, p := range r.players {
 		opponentNames[i] = p.client.playerName
