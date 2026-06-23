@@ -107,10 +107,11 @@ func (c *Client) handleMessage(msg *Message) {
 			return
 		}
 		room := c.mm.CreateRoom(d.Private)
-		room.Join(c)
-		c.room = room
-		c.sendJSON(Message{Type: MsgCreateRoom, Data: mustMarshal(
-			map[string]string{"room_id": room.ID})})
+		if room.Join(c) {
+			c.room = room
+			c.sendJSON(Message{Type: MsgCreateRoom, Data: mustMarshal(
+				map[string]string{"room_id": room.ID})})
+		}
 
 	case MsgJoinRoom:
 		var d JoinRoomData
@@ -123,8 +124,9 @@ func (c *Client) handleMessage(msg *Message) {
 			c.sendError("room not found")
 			return
 		}
-		room.Join(c)
-		c.room = room
+		if room.Join(c) {
+			c.room = room
+		}
 
 	case MsgReady:
 		if c.room == nil {

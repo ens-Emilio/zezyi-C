@@ -33,18 +33,19 @@ func NewRoom(id string, private bool) *Room {
 	}
 }
 
-func (r *Room) Join(c *Client) {
+func (r *Room) Join(c *Client) bool {
+	// Leave previous room BEFORE acquiring new room's lock (prevents AB-BA deadlock)
+	if c.room != nil && c.room != r {
+		c.room.Leave(c)
+		c.room = nil
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if len(r.players) >= RoomMaxPlayers {
 		c.sendError("room is full")
-		return
-	}
-
-	// Leave previous room if any
-	if c.room != nil && c.room != r {
-		c.room.Leave(c)
+		return false
 	}
 
 	r.players = append(r.players, &Player{client: c, ready: false})
@@ -53,6 +54,7 @@ func (r *Room) Join(c *Client) {
 		r.ID, c.playerName, len(r.players), RoomMaxPlayers)
 
 	r.broadcastRoomState()
+	return true
 }
 
 func (r *Room) Leave(c *Client) {
