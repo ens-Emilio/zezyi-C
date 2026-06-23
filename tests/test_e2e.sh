@@ -1,10 +1,11 @@
 #!/bin/bash
-# End-to-end test: start server, verify health, run all unit tests
+# End-to-end test: start server, verify health, run Go integration test + C unit tests
 # Uses port 18080 to avoid conflicts with any existing service on 8080.
 
 set -e
 
 PORT=18080
+TCP_PORT=18081
 SERVER_PID=""
 
 cleanup() {
@@ -17,12 +18,15 @@ trap cleanup EXIT
 
 echo "=== E2E Test ==="
 
-# Build server
+# Build server and run Go integration test (TCP client-server flow)
 cd server
 go build -o zezyi-server
-PORT=$PORT ./zezyi-server &
-SERVER_PID=$!
+go test -v -timeout 30s -run TestE2E ./
 cd ..
+
+# Start server for health check
+PORT=$PORT TCP_PORT=$TCP_PORT ./server/zezyi-server &
+SERVER_PID=$!
 
 # Wait for server to start
 sleep 1
@@ -43,10 +47,10 @@ if [ "$HEALTH" != "ok" ]; then
 fi
 echo "PASS: health endpoint"
 
-# Test unit tests
+# Run C unit tests
 make test
 make test_determinism
 make test_replay
-echo "PASS: all unit tests"
+echo "PASS: all C unit tests"
 
 echo "=== E2E Complete ==="
