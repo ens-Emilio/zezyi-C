@@ -99,8 +99,9 @@ void online_vs_tick(OnlineCtx *o, GameState *game, InputSnapshot *input,
             game->app_state = APP_ONLINE_RESULT;
             return;
         } else if (msg.type == NC_MSG_GARBAGE) {
-            // Apply garbage to local board
-            board_add_garbage(&game->board, msg.garbage_lines, (uint32_t)(msg.garbage_hole_col + msg.frame * 9973));
+            int hole = msg.garbage_hole_col % BOARD_W;
+            if (hole < 0) hole += BOARD_W;
+            board_add_garbage_hole(&game->board, msg.garbage_lines, hole);
         } else if (msg.type == NC_MSG_ERROR) {
             set_disconnect(o, msg.error_msg);
             online_disconnect(o);
@@ -137,6 +138,11 @@ void online_vs_tick(OnlineCtx *o, GameState *game, InputSnapshot *input,
             o->online_frame++;
             o->opp_wait_since_ms = 0;
 
+            // Send pending garbage (competitive) if any
+            if (game->garbage_pending > 0) {
+                net_send_garbage(o->net, o->online_frame, game->garbage_pending, game->garbage_hole);
+                game->garbage_pending = 0;
+            }
             if (o->online_frame % 60 == 0) {
                 uint32_t hash = (uint32_t)game->score ^
                                 (uint32_t)game->total_lines ^

@@ -10,6 +10,10 @@ const (
 	RoomMaxPlayers = 2
 )
 
+type TournamentRecorder interface {
+	RecordResult(int, string)
+}
+
 type PlayerClient interface {
 	sendJSON(Message)
 	sendError(string)
@@ -34,7 +38,7 @@ type Room struct {
 	started              bool
 	ranked               bool
 	mm                   *Matchmaker
-	tournament           interface{ RecordResult(int, string) }
+	tournament           TournamentRecorder
 	tournamentMatchIdx   int
 }
 

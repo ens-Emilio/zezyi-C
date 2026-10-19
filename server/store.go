@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"sort"
 	"sync"
@@ -47,7 +48,9 @@ func (s *Store) load() {
 		var flat map[string]*PlayerStats
 		if err2 := json.Unmarshal(data, &flat); err2 == nil {
 			s.players = flat
+			return
 		}
+		log.Printf("store: corrupt %s: %v", s.path, err)
 		return
 	}
 	if raw.Players != nil {
@@ -65,7 +68,14 @@ func (s *Store) save() {
 		Records []TimeAttackRecord      `json:"records"`
 	}{Players: s.players, Records: s.records}
 	data, _ := json.Marshal(raw)
-	_ = os.WriteFile(s.path, data, 0644)
+	tmp := s.path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		log.Printf("store: write tmp failed: %v", err)
+		return
+	}
+	if err := os.Rename(tmp, s.path); err != nil {
+		log.Printf("store: rename failed: %v", err)
+	}
 }
 
 func (s *Store) Get(name string) *PlayerStats {
@@ -139,6 +149,11 @@ func (s *Store) SubmitTimeAttack(name string, mode int, timeMs int, score int) {
 	s.save()
 }
 
+const (
+	ModeSprint = 1 // must match GameMode MODE_SPRINT in config.h
+	ModeCheese = 5 // MODE_CHEESE
+)
+
 func (s *Store) GetTimeAttackRecords(mode int) []TimeAttackRecord {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -149,7 +164,7 @@ func (s *Store) GetTimeAttackRecords(mode int) []TimeAttackRecord {
 		}
 	}
 	// time modes (Sprint/Cheese) ascending time, score modes descending score
-	timeMode := mode == 1 || mode == 5 // MODE_SPRINT=1, MODE_CHEESE=5 per config.h
+	timeMode := mode == ModeSprint || mode == ModeCheese // MODE_SPRINT=1, MODE_CHEESE=5 per config.h
 	sort.Slice(filtered, func(i, j int) bool {
 		if timeMode {
 			if filtered[i].TimeMs == 0 { return false }

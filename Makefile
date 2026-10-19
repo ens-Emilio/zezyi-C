@@ -46,16 +46,16 @@ release: $(GAME_SRC)
 # -----------------------------------------------------------------------
 TEST_SRC = tests/test_logic.c \
            src/piece.c src/board.c src/randomizer.c \
-           src/rules.c src/highscore.c
+           src/rules.c src/highscore.c src/competitive.c
 test: $(TEST_SRC)
 	$(CC) -std=c11 $(WARN) -g -O0 \
 	    $(TEST_SRC) -Iinclude -DZEZYI_HEADLESS -o test_logic
 	./test_logic
 	$(CC) -std=c11 $(WARN) -g -O0 \
-	    tests/test_determinism.c src/piece.c src/board.c src/randomizer.c src/rules.c src/highscore.c \
+	    tests/test_determinism.c src/piece.c src/board.c src/randomizer.c src/rules.c src/highscore.c src/competitive.c \
 	    -Iinclude -DZEZYI_HEADLESS -o test_determinism && ./test_determinism
 	$(CC) -std=c11 $(WARN) -g -O0 \
-	    tests/test_replay.c src/piece.c src/board.c src/randomizer.c src/rules.c src/highscore.c src/replay.c \
+	    tests/test_replay.c src/piece.c src/board.c src/randomizer.c src/rules.c src/highscore.c src/replay.c src/competitive.c \
 	    -Iinclude -DZEZYI_HEADLESS -o test_replay && ./test_replay
 	$(CC) -std=c11 $(WARN) -g -O0 \
 	    tests/test_competitive.c src/competitive.c -Iinclude -DZEZYI_HEADLESS -o test_competitive && ./test_competitive
@@ -65,7 +65,7 @@ test: $(TEST_SRC)
 # -----------------------------------------------------------------------
 DETERM_SRC = tests/test_determinism.c \
              src/piece.c src/board.c src/randomizer.c \
-             src/rules.c src/highscore.c
+             src/rules.c src/highscore.c src/competitive.c
 test_determinism: $(DETERM_SRC)
 	$(CC) -std=c11 $(WARN) -g -O0 \
 	    $(DETERM_SRC) -Iinclude -DZEZYI_HEADLESS -o test_determinism
@@ -76,7 +76,7 @@ test_determinism: $(DETERM_SRC)
 # -----------------------------------------------------------------------
 REPLAY_SRC = tests/test_replay.c \
              src/piece.c src/board.c src/randomizer.c \
-             src/rules.c src/highscore.c src/replay.c
+             src/rules.c src/highscore.c src/replay.c src/competitive.c
 test_replay: $(REPLAY_SRC)
 	$(CC) -std=c11 $(WARN) -g -O0 \
 	    $(REPLAY_SRC) -Iinclude -DZEZYI_HEADLESS -o test_replay

@@ -100,17 +100,17 @@ func main() {
 	})
 
 	http.HandleFunc("/leaderboard/sprint", func(w http.ResponseWriter, r *http.Request) {
-		records := store.GetTimeAttackRecords(1)
+		records := store.GetTimeAttackRecords(ModeSprint)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(records)
 	})
 	http.HandleFunc("/leaderboard/ultra", func(w http.ResponseWriter, r *http.Request) {
-		records := store.GetTimeAttackRecords(2)
+		records := store.GetTimeAttackRecords(2) // MODE_ULTRA
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(records)
 	})
 	http.HandleFunc("/leaderboard/survival", func(w http.ResponseWriter, r *http.Request) {
-		records := store.GetTimeAttackRecords(4)
+		records := store.GetTimeAttackRecords(4) // MODE_SURVIVAL
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(records)
 	})

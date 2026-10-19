@@ -345,7 +345,7 @@ static void main_loop_iter(void)
 
     /* Pause when window loses focus during gameplay (desktop only) */
 #ifndef __EMSCRIPTEN__
-    if (ctx->game.app_state == APP_PLAYING) {
+    if (ctx->game.app_state == APP_PLAYING || ctx->game.app_state == APP_ONLINE_VS) {
         uint32_t wflags = SDL_GetWindowFlags(ctx->window);
         if ((wflags & SDL_WINDOW_INPUT_FOCUS) == 0 && (wflags & SDL_WINDOW_SHOWN)) {
             ctx->game.app_state = APP_PAUSED;

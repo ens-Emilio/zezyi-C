@@ -10,3 +10,4 @@ uint32_t board_full_row_mask(const Board *b);
 void     board_clear_rows_by_mask(Board *b, uint32_t mask);
 /* Add garbage rows at the bottom (used by Cheese mode) */
 void     board_add_garbage(Board *b, int lines, uint32_t seed);
+void     board_add_garbage_hole(Board *b, int lines, int hole_col);

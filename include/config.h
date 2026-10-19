@@ -234,6 +234,11 @@ typedef struct {
     int ghost_active;
     uint32_t ghost_tick;
 
+    /* Competitive garbage queue (VS mode) */
+    int garbage_pending;
+    int garbage_hole;
+    uint32_t garbage_rng;
+
     /* Audio events — set by rules.c, zeroed + dispatched by app.c each frame */
     uint32_t  audio_events;
 } GameState;

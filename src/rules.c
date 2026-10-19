@@ -5,7 +5,7 @@
 #include "piece.h"
 #include "randomizer.h"
 #include "highscore.h"
-
+#include "competitive.h"
 /* -------------------------------------------------------------------------
  * Gravity
  *
@@ -387,11 +387,17 @@ void game_lock_piece(GameState *g)
         g->clearing_rows = mask;
         g->clear_timer   = 0;
         g->game_phase    = PHASE_LINE_CLEAR_ANIM;
+        /* Competitive: enqueue garbage to send (VS only; harmless offline) */
+        int garb = competitive_garbage_for_clear(clearing_count, g->tspin, b2b_bonus, g->all_clear);
+        if (garb > 0) {
+            g->garbage_pending += garb;
+            g->garbage_rng = rng_xorshift32(&g->garbage_rng);
+            g->garbage_hole = (int)(g->garbage_rng % 10);
+        }
     } else {
         game_spawn_next(g, NULL);
     }
 }
-
 /* -------------------------------------------------------------------------
  * game_init
  * ---------------------------------------------------------------------- */
@@ -438,8 +444,11 @@ static void game_reset(GameState *g, uint32_t seed)
     /* Tips */
     g->tip_id   = TIP_NONE;
     g->tip_shown = 0;
-}
 
+    g->garbage_pending = 0;
+    g->garbage_hole    = 0;
+    g->garbage_rng     = seed ? seed : 1;
+}
 typedef struct {
     int  hs_marathon, hs_sprint_ms, hs_ultra, hs_blitz, hs_survival, hs_cheese_ms;
     int  menu_cursor;

@@ -2,8 +2,10 @@
 
 void garbage_queue_init(GarbageQueue *gq) { gq->lines = 0; gq->hole_col = 0; }
 void garbage_queue_add(GarbageQueue *gq, int lines, uint32_t rng_seed) {
+	uint32_t s = rng_seed ? rng_seed : 1;
+	s ^= s << 13; s ^= s >> 17; s ^= s << 5;
 	gq->lines += lines;
-	gq->hole_col = (int)(rng_seed % 10);
+	gq->hole_col = (int)(s % 10);
 }
 int garbage_queue_pending(const GarbageQueue *gq) { return gq->lines; }
 

@@ -97,18 +97,32 @@ void board_clear_rows_by_mask(Board *b, uint32_t mask)
 
 /*
  * Push existing cells up by `lines` rows and fill the bottom with garbage:
+ * every garbage row has exactly one hole at hole_col (0..BOARD_W-1).
+ */
+void board_add_garbage_hole(Board *b, int lines, int hole_col)
+{
+    if (lines <= 0 || lines > BOARD_H) return;
+    hole_col %= BOARD_W;
+    if (hole_col < 0) hole_col += BOARD_W;
+    for (int y = 0; y < BOARD_H - lines; y++)
+        memcpy(b->cells[y], b->cells[y + lines], (size_t)BOARD_W);
+    for (int r = BOARD_H - lines; r < BOARD_H; r++) {
+        for (int c = 0; c < BOARD_W; c++)
+            b->cells[r][c] = (c == hole_col) ? CELL_EMPTY : CELL_GARBAGE;
+    }
+}
+
+/*
+ * Push existing cells up by `lines` rows and fill the bottom with garbage:
  * every garbage row has exactly one random hole (column = 0 when seed == 0).
  */
 void board_add_garbage(Board *b, int lines, uint32_t seed)
+
 {
     if (lines <= 0 || lines > BOARD_H) return;
     if (!seed) seed = 1;
-
-    /* Shift existing rows upward */
     for (int y = 0; y < BOARD_H - lines; y++)
         memcpy(b->cells[y], b->cells[y + lines], (size_t)BOARD_W);
-
-    /* Fill bottom `lines` rows with garbage */
     for (int r = BOARD_H - lines; r < BOARD_H; r++) {
         int hole = (int)(rng_xorshift32(&seed) % (uint32_t)BOARD_W);
         for (int c = 0; c < BOARD_W; c++)
