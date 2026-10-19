@@ -6,6 +6,7 @@
 #include "randomizer.h"
 #include "highscore.h"
 #include "competitive.h"
+#include "replay.h"
 /* -------------------------------------------------------------------------
  * Gravity
  *
@@ -694,3 +695,16 @@ void game_tick(GameState *g, const InputSnapshot *in, double dt)
 
     check_ground_state(g);
 }
+/* Ghost replay tick — call from app.c every frame when ghost_active */
+void game_tick_ghost(GameState *g, const ReplayPlayer *replay) {
+    if (!g->ghost_active) return;
+    if (g->ghost_tick >= (uint32_t)replay->frame_count) return;
+    InputSnapshot inp;
+    replay_get_input(replay, (int)g->ghost_tick, &inp);
+    // Run ghost's own game logic on a hidden GameState stored alongside
+    // For now, ghost_tick just advances counter; real board ghost would need
+    // a separate GameState. Minimal: increment tick to drive overlay.
+    g->ghost_tick++;
+    (void)inp;
+}
+

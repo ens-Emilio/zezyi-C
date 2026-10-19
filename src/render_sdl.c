@@ -482,6 +482,13 @@ static void render_left_panel(SDL_Renderer *r, const GameState *g)
         draw_preview(r, g->hold, inner_x + 3, inner_y + 3, g->hold_used);
     }
 
+    if (g->garbage_pending > 0) {
+        char garb[16];
+        SDL_snprintf(garb, sizeof(garb), "+%d GARB", g->garbage_pending);
+        SDL_SetRenderDrawColor(r, 255, 60, 60, 255);
+        draw_str(r, garb, x + pad, y, fsm);
+        y += 7 * fsm + pad;
+    }
     y += hold_h + pad * 2;
 
     /* Sections ---------------------------------------------------------- */
@@ -1329,16 +1336,16 @@ int render_init(SDL_Renderer **renderer, SDL_Window **window, int w, int h)
 static void render_ghost_overlay(SDL_Renderer *r, const GameState *g) {
     if (!g->ghost_active) return;
     int cx = s_layout.screen_w / 2;
-    // Label
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(r, 0, 220, 255, 180);
     const char *label = "GHOST";
     draw_str(r, label, cx - str_width(label, s_layout.font_sm)/2, s_layout.board.y - 20, s_layout.font_sm);
+    if (g->ghost_tick > 0 || g->ghost_frame_count > 0) {
+        char tickbuf[32];
+        SDL_snprintf(tickbuf, sizeof(tickbuf), "%u/%d", g->ghost_tick, g->ghost_frame_count);
+        draw_str(r, tickbuf, cx - str_width(tickbuf, s_layout.font_sm)/2, s_layout.board.y - 10, s_layout.font_sm);
+    }
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
-    // Draw ghost_tick as debug (optional): small number
-    // For now, overlay is label-only; tick-based board overlay deferred
-    // until ReplayPlayer integration (ghost_game not yet wired in GameState).
-    // Keep blend mode restored.
 }
 
 void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)

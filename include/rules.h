@@ -1,5 +1,6 @@
 #pragma once
 #include "config.h"
+#include "replay.h"
 
 /* Initialize game for Marathon mode (default). */
 void game_init(GameState *g, uint32_t seed);
@@ -21,3 +22,4 @@ void game_tick(GameState *g, const InputSnapshot *in, double dt);
 int score_for_lines(int n, int level, int b2b);
 int score_for_tspin(int lines, int level, int b2b);
 int score_for_all_clear(int cleared, int level);
+void game_tick_ghost(GameState *g, const ReplayPlayer *replay);

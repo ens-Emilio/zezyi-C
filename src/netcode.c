@@ -196,6 +196,27 @@ int net_send_garbage(NetContext *nc, int frame, int lines, int hole_col)
 	return send_line(nc, buf);
 }
 
+int net_send_ranked_queue(NetContext *nc, int queue_join)
+{
+	char buf[64];
+	snprintf(buf, sizeof(buf),
+		"{\"type\":\"ranked_queue\",\"data\":{\"queue\":%s}}",
+		queue_join ? "true" : "false");
+	return send_line(nc, buf);
+}
+
+int net_send_tournament_join(NetContext *nc, const char *tournament_id)
+{
+	char buf[128];
+	char esc[32];
+	// naive escape for id (hex only)
+	snprintf(esc, sizeof(esc), "%s", tournament_id ? tournament_id : "");
+	snprintf(buf, sizeof(buf),
+		"{\"type\":\"tournament_join\",\"data\":{\"tournament_id\":\"%s\"}}",
+		esc);
+	return send_line(nc, buf);
+}
+
 /* --- Minimal JSON value extractors --- */
 
 /* True if p lies inside a JSON string literal. */

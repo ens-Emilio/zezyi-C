@@ -24,6 +24,8 @@ int net_send_ready(NetContext *nc, int ready);
 int net_send_input(NetContext *nc, int frame, uint8_t input_bitmask);
 int net_send_state(NetContext *nc, int frame, uint32_t hash);
 int net_send_garbage(NetContext *nc, int frame, int lines, int hole_col);
+int net_send_ranked_queue(NetContext *nc, int queue_join);
+int net_send_tournament_join(NetContext *nc, const char *tournament_id);
 
 typedef enum {
     NC_MSG_NONE = 0,

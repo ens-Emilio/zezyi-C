@@ -233,6 +233,11 @@ typedef struct {
     /* Ghost VS overlay — parallel replay (client-side spectate) */
     int ghost_active;
     uint32_t ghost_tick;
+    /* ghost replay: stored separately via replay.h; keep seed/mode + frame
+       count here to avoid circular include. Full state is owned by app.c. */
+    uint32_t ghost_seed;
+    GameMode ghost_mode;
+    int      ghost_frame_count;
 
     /* Competitive garbage queue (VS mode) */
     int garbage_pending;

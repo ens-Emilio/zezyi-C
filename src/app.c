@@ -13,6 +13,7 @@
 #include "highscore.h"
 #include "netcode.h"
 #include "online.h"
+#include "replay.h"
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -236,6 +237,8 @@ typedef struct {
     uint64_t      prev;
     int           running;
     OnlineCtx     online;
+    ReplayPlayer  ghost_replay;
+    int           ghost_replay_loaded;
 } AppCtx;
 
 static AppCtx s_ctx;
@@ -311,6 +314,12 @@ int app_run(void)
     ctx->prev        = time_now_ms();
     ctx->running     = 1;
     online_init(&ctx->online);
+    ctx->ghost_replay_loaded = (replay_load(&ctx->ghost_replay, "zezyi_ghost.dat") == 0);
+    if (ctx->ghost_replay_loaded) {
+        ctx->game.ghost_seed = ctx->ghost_replay.seed;
+        ctx->game.ghost_mode = ctx->ghost_replay.mode;
+        ctx->game.ghost_frame_count = ctx->ghost_replay.frame_count;
+    }
 
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(main_loop_iter, 0, 1);
@@ -414,10 +423,41 @@ static void main_loop_iter(void)
                 break;
             }
 
+            /* E/F: ghost toggle (offline VS overlay) */
+            if (ctx->input.text_backspace || ctx->input.text_confirm) { /* reuse unused edges as ghost/debug */
+                (void)0;
+            }
+
             /* Open settings */
             if (ctx->input.settings) {
                 ctx->game.app_state = APP_SETTINGS;
                 ctx->game.settings_cursor = 0;
+                break;
+            }
+
+            /* R: ranked queue (online ranked) — reuses R/res_cycle key */
+            if (ctx->input.res_cycle) {
+                if (!ctx->online.net) {
+                    if (online_connect(&ctx->online, ctx->cfg.player_name, &ctx->game)) {
+                        net_send_ranked_queue(ctx->online.net, 1);
+                    }
+                } else {
+                    net_send_ranked_queue(ctx->online.net, 1);
+                }
+                break;
+            }
+
+            /* C: toggle ghost overlay demo (offline) */
+            if (ctx->input.hold) {
+                ctx->game.ghost_active = !ctx->game.ghost_active;
+                if (ctx->game.ghost_active && ctx->ghost_replay_loaded) {
+                    ctx->game.ghost_tick = 0;
+                    ctx->game.ghost_seed = ctx->ghost_replay.seed;
+                    ctx->game.ghost_mode = ctx->ghost_replay.mode;
+                    ctx->game.ghost_frame_count = ctx->ghost_replay.frame_count;
+                } else if (!ctx->game.ghost_active) {
+                    ctx->game.ghost_tick = 0;
+                }
                 break;
             }
 
@@ -426,15 +466,6 @@ static void main_loop_iter(void)
                 ctx->game.app_state = APP_ONLINE_MENU;
                 break;
             }
-
-#ifndef __EMSCRIPTEN__
-            /* Resolution cycling (desktop only) */
-            if (ctx->input.res_cycle) {
-                ctx->cfg.resolution =
-                    (ctx->cfg.resolution + 1) % (int)RES_COUNT;
-                apply_resolution(ctx->window, ctx->cfg.resolution, &ctx->lay);
-            }
-#endif
             break;
 
         /* ---- Settings -------------------------------------------- */
@@ -587,6 +618,10 @@ static void main_loop_iter(void)
 
         /* ---- Online Menu ----------------------------------------- */
         case APP_ONLINE_MENU:
+            if (ctx->input.settings) { // T / S reuse? keep simple: pause = tournament
+                if (ctx->online.net) net_send_tournament_join(ctx->online.net, "default");
+                break;
+            }
             if (ctx->input.back) {
                 ctx->game.app_state = APP_MENU;
                 break;
@@ -637,6 +672,11 @@ after_switch:
     }
     if (ctx->game.app_state != APP_PLAYING)
         ctx->accumulator = 0.0;
+
+    // Ghost replay tick (offline overlay)
+    if (ctx->game.ghost_active && ctx->ghost_replay_loaded) {
+        game_tick_ghost(&ctx->game, &ctx->ghost_replay);
+    }
 
     dispatch_audio(&ctx->game);
 
