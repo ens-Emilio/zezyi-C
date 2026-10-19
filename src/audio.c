@@ -1,5 +1,18 @@
 #include <stdio.h>
 #include <string.h>
+#ifdef ZEZYI_NO_MIXER
+// Mixer not available — stub audio (no sound, no link dep)
+#include "audio.h"
+int audio_init(void){return 0;}
+void audio_shutdown(void){}
+void audio_play(SfxId id){(void)id;}
+void audio_play_bgm(const char *a,int b){(void)a;(void)b;}
+void audio_stop_bgm(void){}
+void audio_pause_bgm(void){}
+void audio_resume_bgm(void){}
+void audio_set_sfx_volume(int v){(void)v;}
+void audio_set_bgm_volume(int v){(void)v;}
+#else
 #include <SDL2/SDL_mixer.h>
 #include "audio.h"
 
@@ -129,3 +142,4 @@ void audio_set_bgm_volume(int vol)
     if (!g_init_ok) return;
     Mix_VolumeMusic(vol);
 }
+#endif

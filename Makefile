@@ -18,7 +18,13 @@ ifeq ($(strip $(PKG_SDL_LIBS)),)
 PKG_SDL_LIBS := -lSDL2
 endif
 endif
+# Mixer optional: only link if pkg-config found, else stub via -DZEZYI_NO_MIXER
+MIXER_EXISTS := $(shell pkg-config --exists SDL2_mixer 2>/dev/null && echo yes || echo no)
+ifeq ($(MIXER_EXISTS),yes)
 PKG_SDL_LIBS += -lSDL2_mixer
+else
+PKG_SDL_CFLAGS += -DZEZYI_NO_MIXER
+endif
 endif
 SDL_CFLAGS ?= $(PKG_SDL_CFLAGS)
 SDL_LIBS   ?= $(PKG_SDL_LIBS)
