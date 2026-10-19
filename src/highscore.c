@@ -88,12 +88,13 @@ void hs_load(GameState *g)
         f = fopen(HS_FILE_LEGACY, "r");
         if (!f) return;
     }
-
     char line[64];
     while (fgets(line, (int)sizeof(line), f)) {
         char key[32];
         int  val;
         if (sscanf(line, " %31[^=] = %d", key, &val) != 2) continue;
+        if (val < 0) continue;
+        if (val > 99999999) val = 99999999;
         /* Trim trailing whitespace from key */
         int klen = (int)strlen(key);
         while (klen > 0 && (key[klen-1]==' '||key[klen-1]=='\t')) klen--;

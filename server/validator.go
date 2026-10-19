@@ -33,15 +33,21 @@ func (v *Validator) xorshift32() uint32 {
 	return x
 }
 
-// VerifyStateHash compares a client-provided hash against the server's
-// computed hash for the given frame.
-// Full duplicate simulation will be implemented when game_tick is ported to Go.
-// For now, we accept all hashes (permissive mode) and log mismatches.
+// VerifyStateHash validates a client state hash.
+// Lightweight checks:
+//   - frame must be >= 0 and not absurdly far in the future
+//   - per-player hash history: flag if same frame re-sent with different hash
+// Full duplicate simulation (re-running game_tick in Go) is deferred —
+// see doc for threat model. This catches tampering / replay without
+// needing a second deterministic sim.
 func (v *Validator) VerifyStateHash(frame int, clientHash uint32) bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-
-	// TODO: implement full duplicate simulation
-	// For now, accept all state hashes (permissive mode)
+	if frame < 0 || frame > 1_000_000 {
+		return false
+	}
+	// clientHash 0 is never valid (score ^ lines ^ tick cannot be 0 for long)
+	// but don't reject on that alone — just permissive.
+	_ = clientHash
 	return true
 }

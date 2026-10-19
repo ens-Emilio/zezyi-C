@@ -62,7 +62,6 @@ static const char *language_to_str(Language lang)
         default:        return "en";
     }
 }
-
 void gameconfig_defaults(GameConfig *cfg)
 {
     cfg->das_ms      = 140;
@@ -74,6 +73,26 @@ void gameconfig_defaults(GameConfig *cfg)
     cfg->resolution  = 1; /* RES_720P */
     cfg->language    = LANG_EN;
     cfg->player_name[0] = '\0';
+}
+
+static int clamp_int(int v, int lo, int hi)
+{
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
+void gameconfig_clamp(GameConfig *cfg)
+{
+    cfg->das_ms     = clamp_int(cfg->das_ms, 0, 500);
+    cfg->arr_ms     = clamp_int(cfg->arr_ms, 0, 100);
+    cfg->ghost      = clamp_int(cfg->ghost, 0, 1);
+    cfg->grid_lines = clamp_int(cfg->grid_lines, 0, 1);
+    cfg->sfx_volume = clamp_int(cfg->sfx_volume, 0, 128);
+    cfg->bgm_volume = clamp_int(cfg->bgm_volume, 0, 128);
+    cfg->resolution = clamp_int(cfg->resolution, 0, (int)RES_COUNT - 1);
+    if (cfg->language < 0 || cfg->language >= LANG_COUNT)
+        cfg->language = LANG_EN;
 }
 
 /*
@@ -130,29 +149,41 @@ void gameconfig_load(GameConfig *cfg, const char *path)
             continue;
         }
 
-        /* Try string key=value (player_name, language) */
-        if (sscanf(p, " %63[^=] = %63s", key, strval) == 2) {
+        /* Try string key=value (player_name, language) — allow spaces in value after '=' */
+        if (sscanf(p, " %63[^=] = %63[^\n]", key, strval) == 2) {
             int klen = (int)strlen(key);
             while (klen > 0 && (key[klen-1]==' '||key[klen-1]=='\t')) klen--;
             key[klen] = '\0';
+            /* trim leading spaces from strval */
+            char *sv = strval;
+            while (*sv == ' ' || *sv == '\t') sv++;
+            /* trim trailing spaces */
+            int slen = (int)strlen(sv);
+            while (slen > 0 && (sv[slen-1]==' '||sv[slen-1]=='\t')) slen--;
+            sv[slen] = '\0';
+            /* cut at first space if value should be single token (player_name) */
+            char *sp = strchr(sv, ' ');
+            if (sp) *sp = '\0';
+            sp = strchr(sv, '\t');
+            if (sp) *sp = '\0';
 
             if (strcmp(key, "player_name") == 0) {
-                strncpy(cfg->player_name, strval,
+                strncpy(cfg->player_name, sv,
                         sizeof(cfg->player_name) - 1);
                 cfg->player_name[sizeof(cfg->player_name) - 1] = '\0';
             } else if (strcmp(key, "language") == 0) {
-                cfg->language = parse_language_str(strval, cfg->language);
+                cfg->language = parse_language_str(sv, cfg->language);
             }
         }
     }
-
     fclose(f);
+    gameconfig_clamp(cfg);
 }
 
-void gameconfig_save(const GameConfig *cfg, const char *path)
+int gameconfig_save(const GameConfig *cfg, const char *path)
 {
     FILE *f = fopen(path, "w");
-    if (!f) return;
+    if (!f) return 0;
 
     fprintf(f, "# zezyi runtime config\n");
     fprintf(f, "# Lines starting with # are ignored.\n\n");
@@ -176,4 +207,5 @@ void gameconfig_save(const GameConfig *cfg, const char *path)
 #ifdef __EMSCRIPTEN__
     em_cfg_persist(path);
 #endif
+    return 1;
 }

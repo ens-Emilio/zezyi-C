@@ -18,11 +18,10 @@
 #define COLOR_HOLD_BG  (SDL_Color){ 20,  20,  35, 255} /* hold box bg */
 #define COLOR_DIVIDER  (SDL_Color){ 50,  50,  70, 255} /* separators */
 
-/* Module state */
+/* Module state — set from GameConfig each frame */
 static Layout s_layout;
 static int    opt_ghost      = 1;
 static int    opt_grid_lines = 0;
-
 /* Tip display state — updated each frame from GameState */
 static TipId    s_tip_active  = TIP_NONE;
 static uint32_t s_tip_expire  = 0; /* SDL_GetTicks() target */
@@ -1363,6 +1362,24 @@ void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)
         case APP_ONLINE_RESULT:
             render_results(r, g);
             break;
+        case APP_ONLINE_DISCONNECT: {
+            /* Reuse menu background + overlay error */
+            render_menu(r, g);
+            int cx = s_layout.screen_w / 2;
+            int cy = s_layout.screen_h / 2;
+            SDL_SetRenderDrawColor(r, 0, 0, 0, 180);
+            SDL_Rect bg = { cx - 260, cy - 50, 520, 110 };
+            SDL_RenderFillRect(r, &bg);
+            SDL_SetRenderDrawColor(r, 255, 80, 80, 255);
+            SDL_RenderDrawRect(r, &bg);
+            SDL_SetRenderDrawColor(r, 255, 80, 80, 255);
+            const char *title = "DISCONNECT";
+            draw_str(r, title, cx - str_width(title, s_layout.font_md)/2, cy - 25, s_layout.font_md);
+            SDL_SetRenderDrawColor(r, 200, 200, 200, 255);
+            const char *hint = "PRESS SPACE TO RETURN";
+            draw_str(r, hint, cx - str_width(hint, s_layout.font_sm)/2, cy + 20, s_layout.font_sm);
+            break;
+        }
     }
 
     SDL_RenderPresent(r);

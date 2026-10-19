@@ -440,39 +440,50 @@ static void game_reset(GameState *g, uint32_t seed)
     g->tip_shown = 0;
 }
 
-/* Preserve all persistent data across a game reset */
-#define PRESERVE_PERSISTENT(g, block) \
-    do { \
-        int _hm  = (g)->hs_marathon;  \
-        int _hs  = (g)->hs_sprint_ms; \
-        int _hu  = (g)->hs_ultra;     \
-        int _hb  = (g)->hs_blitz;     \
-        int _hsv = (g)->hs_survival;  \
-        int _hc  = (g)->hs_cheese_ms; \
-        int _cur = (g)->menu_cursor;  \
-        char _pn[32]; \
-        __builtin_memcpy(_pn, (g)->player_name, sizeof(_pn)); \
-        block; \
-        (g)->hs_marathon  = _hm;  \
-        (g)->hs_sprint_ms = _hs;  \
-        (g)->hs_ultra     = _hu;  \
-        (g)->hs_blitz     = _hb;  \
-        (g)->hs_survival  = _hsv; \
-        (g)->hs_cheese_ms = _hc;  \
-        (g)->menu_cursor  = _cur; \
-        __builtin_memcpy((g)->player_name, _pn, sizeof(_pn)); \
-    } while(0)
+typedef struct {
+    int  hs_marathon, hs_sprint_ms, hs_ultra, hs_blitz, hs_survival, hs_cheese_ms;
+    int  menu_cursor;
+    char player_name[32];
+} PersistentData;
+
+static void save_persistent(const GameState *g, PersistentData *out)
+{
+    out->hs_marathon  = g->hs_marathon;
+    out->hs_sprint_ms = g->hs_sprint_ms;
+    out->hs_ultra     = g->hs_ultra;
+    out->hs_blitz     = g->hs_blitz;
+    out->hs_survival  = g->hs_survival;
+    out->hs_cheese_ms = g->hs_cheese_ms;
+    out->menu_cursor  = g->menu_cursor;
+    memcpy(out->player_name, g->player_name, sizeof(out->player_name));
+}
+
+static void restore_persistent(GameState *g, const PersistentData *p)
+{
+    g->hs_marathon  = p->hs_marathon;
+    g->hs_sprint_ms = p->hs_sprint_ms;
+    g->hs_ultra     = p->hs_ultra;
+    g->hs_blitz     = p->hs_blitz;
+    g->hs_survival  = p->hs_survival;
+    g->hs_cheese_ms = p->hs_cheese_ms;
+    g->menu_cursor  = p->menu_cursor;
+    memcpy(g->player_name, p->player_name, sizeof(p->player_name));
+}
 
 void game_init(GameState *g, uint32_t seed)
 {
-    PRESERVE_PERSISTENT(g, game_reset(g, seed));
+    PersistentData p; save_persistent(g, &p);
+    game_reset(g, seed);
+    restore_persistent(g, &p);
     g->mode = MODE_MARATHON;
     game_spawn_next(g, NULL);
 }
 
 void game_init_for_mode(GameState *g, uint32_t seed, GameMode mode)
 {
-    PRESERVE_PERSISTENT(g, game_reset(g, seed));
+    PersistentData p; save_persistent(g, &p);
+    game_reset(g, seed);
+    restore_persistent(g, &p);
     g->mode = mode;
 
     /* Cheese: fill board with garbage rows */

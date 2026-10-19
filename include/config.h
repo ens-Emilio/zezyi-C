@@ -8,9 +8,10 @@
 #define NEXT_VISIBLE  5
 #define CELL_PX      32
 
-/* Tick timing: 16 ms per tick.  Drift correction of +4 ms every 6 ticks
- * yields exactly 1000 ms per 60 ticks (6*16 + 4 = 100 ms per 6 ticks). */
-#define TICK_MS             16
+/* Tick timing: 60 Hz (16.666 ms). Game uses 1/60s double-step via
+ * time_step.c / SDL_GetTicks64(). Legacy integer constants kept for
+ * reference; gravity now uses integer ms accumulators in GameState. */
+#define TICK_MS              16
 #define TICK_DRIFT_CORRECT   4
 #define TICK_DRIFT_INTERVAL  6
 
@@ -97,7 +98,8 @@ typedef enum {
     APP_ONLINE_MENU,
     APP_ONLINE_LOBBY,
     APP_ONLINE_VS,
-    APP_ONLINE_RESULT
+    APP_ONLINE_RESULT,
+    APP_ONLINE_DISCONNECT /* opponent / network timeout         */
 } AppState;
 
 /* Contextual tips — set by rules.c, displayed by render_sdl.c */

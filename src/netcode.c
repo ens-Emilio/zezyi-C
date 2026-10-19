@@ -103,19 +103,27 @@ const char *net_error(const NetContext *nc)
 }
 
 /* Escape a string for safe embedding inside a JSON string literal.
- * Backslash-escapes " and \, and skips control characters (< 0x20). */
+ * Escapes " and \ as \\, and encodes control chars (<0x20) as \u00XX. */
 static void json_escape(const char *in, char *out, size_t out_sz)
 {
     size_t j = 0;
-    for (size_t i = 0; in[i] && j + 2 < out_sz; i++) {
-        if (in[i] == '"' || in[i] == '\\') {
+    for (size_t i = 0; in[i] && j + 1 < out_sz; i++) {
+        unsigned char c = (unsigned char)in[i];
+        if (c == '"' || c == '\\') {
             if (j + 2 >= out_sz) break;
             out[j++] = '\\';
-            out[j++] = in[i];
-        } else if ((unsigned char)in[i] < 0x20) {
-            continue;
+            out[j++] = (char)c;
+        } else if (c < 0x20) {
+            if (j + 6 >= out_sz) break;
+            static const char HEX[] = "0123456789ABCDEF";
+            out[j++] = '\\';
+            out[j++] = 'u';
+            out[j++] = '0';
+            out[j++] = '0';
+            out[j++] = HEX[(c >> 4) & 0xF];
+            out[j++] = HEX[c & 0xF];
         } else {
-            out[j++] = in[i];
+            out[j++] = (char)c;
         }
     }
     out[j] = '\0';
@@ -181,19 +189,37 @@ int net_send_state(NetContext *nc, int frame, uint32_t hash)
 
 /* --- Minimal JSON value extractors --- */
 
+/* True if p lies inside a JSON string literal. */
+static int inside_string(const char *json, const char *p)
+{
+    int in_str = 0, esc = 0;
+    for (const char *q = json; q < p; q++) {
+        if (esc) { esc = 0; continue; }
+        if (*q == '\\' && in_str) esc = 1;
+        else if (*q == '"') in_str = !in_str;
+    }
+    return in_str;
+}
+
 /* Locate a key and return a pointer just past the ':' (after whitespace). */
 static const char *find_key(const char *json, const char *key)
 {
     char pattern[64];
     snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    const char *p = strstr(json, pattern);
-    if (!p) return NULL;
-    p += strlen(pattern);
-    p = strchr(p, ':');
-    if (!p) return NULL;
-    p++;
-    while (*p == ' ' || *p == '\t') p++;
-    return p;
+    size_t plen = strlen(pattern);
+    const char *p = json;
+    while ((p = strstr(p, pattern)) != NULL) {
+        if (!inside_string(json, p)) {
+            p += plen;
+            p = strchr(p, ':');
+            if (!p) return NULL;
+            p++;
+            while (*p == ' ' || *p == '\t') p++;
+            return p;
+        }
+        p += plen;
+    }
+    return NULL;
 }
 
 static int json_find_string(const char *json, const char *key,
@@ -203,8 +229,33 @@ static int json_find_string(const char *json, const char *key,
     if (!p || *p != '"') return -1;
     p++;
     size_t i = 0;
-    while (*p && *p != '"' && i < out_sz - 1u) {
-        out[i++] = *p++;
+    while (*p && *p != '"' && i + 1 < out_sz) {
+        if (*p == '\\' && *(p+1)) {
+            p++;
+            if (*p == 'u') {
+                p++;
+                int hex = 0;
+                int ok = 1;
+                for (int k = 0; k < 4 && *p; k++) {
+                    char h = *p;
+                    int v = -1;
+                    if (h >= '0' && h <= '9') v = h-'0';
+                    else if (h >= 'a' && h <= 'f') v = h-'a'+10;
+                    else if (h >= 'A' && h <= 'F') v = h-'A'+10;
+                    if (v < 0) { ok = 0; break; }
+                    hex = hex*16 + v;
+                    p++;
+                }
+                if (!ok || hex >= 0x20) {
+                    if (ok && i + 1 < out_sz) out[i++] = (char)hex;
+                }
+                continue;
+            }
+            if (i + 1 < out_sz) out[i++] = *p++;
+            else p++;
+        } else {
+            out[i++] = *p++;
+        }
     }
     out[i] = '\0';
     return 0;
@@ -229,12 +280,8 @@ static int json_find_bool(const char *json, const char *key, int *out)
 /* Return a pointer to the body of the "data" object (at the opening '{'). */
 static const char *json_data_start(const char *json)
 {
-    const char *p = strstr(json, "\"data\"");
+    const char *p = find_key(json, "data");
     if (!p) return NULL;
-    p += 6; /* strlen("\"data\"") */
-    p = strchr(p, ':');
-    if (!p) return NULL;
-    p++;
     while (*p == ' ' || *p == '\t') p++;
     return p;
 }

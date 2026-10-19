@@ -1,8 +1,27 @@
 CC      = gcc
 WARN    = -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Werror
-SDL_CFLAGS = -I/tmp/usr/include
-SDL_LIBS   = -L/tmp/usr/lib64 -Wl,-rpath,/tmp/usr/lib64 -lSDL2 -lSDL2_mixer
-
+# SDL flags via pkg-config with sdl2-config fallback.
+# Override by setting SDL_CFLAGS / SDL_LIBS in environment or command line.
+PKG_SDL_CFLAGS := $(shell pkg-config --cflags sdl2 2>/dev/null)
+PKG_SDL_LIBS   := $(shell pkg-config --libs sdl2 SDL2_mixer 2>/dev/null)
+ifeq ($(strip $(PKG_SDL_CFLAGS)),)
+PKG_SDL_CFLAGS := $(shell sdl2-config --cflags 2>/dev/null)
+endif
+ifeq ($(strip $(PKG_SDL_CFLAGS)),)
+PKG_SDL_CFLAGS := -I/usr/include/SDL2 -D_GNU_SOURCE=1 -D_REENTRANT
+endif
+ifeq ($(strip $(PKG_SDL_LIBS)),)
+PKG_SDL_LIBS := $(shell pkg-config --libs sdl2 2>/dev/null)
+ifeq ($(strip $(PKG_SDL_LIBS)),)
+PKG_SDL_LIBS := $(shell sdl2-config --libs 2>/dev/null)
+ifeq ($(strip $(PKG_SDL_LIBS)),)
+PKG_SDL_LIBS := -lSDL2
+endif
+endif
+PKG_SDL_LIBS += -lSDL2_mixer
+endif
+SDL_CFLAGS ?= $(PKG_SDL_CFLAGS)
+SDL_LIBS   ?= $(PKG_SDL_LIBS)
 GAME_SRC = $(wildcard src/*.c)
 TARGET   = zezyi
 
@@ -32,6 +51,12 @@ test: $(TEST_SRC)
 	$(CC) -std=c11 $(WARN) -g -O0 \
 	    $(TEST_SRC) -Iinclude -DZEZYI_HEADLESS -o test_logic
 	./test_logic
+	$(CC) -std=c11 $(WARN) -g -O0 \
+	    tests/test_determinism.c src/piece.c src/board.c src/randomizer.c src/rules.c src/highscore.c \
+	    -Iinclude -DZEZYI_HEADLESS -o test_determinism && ./test_determinism
+	$(CC) -std=c11 $(WARN) -g -O0 \
+	    tests/test_replay.c src/piece.c src/board.c src/randomizer.c src/rules.c src/highscore.c src/replay.c \
+	    -Iinclude -DZEZYI_HEADLESS -o test_replay && ./test_replay
 
 # -----------------------------------------------------------------------
 # Determinism test — same seed must produce identical results (no SDL)
@@ -65,6 +90,7 @@ WARN_WEB  = -Wall -Wextra -Wshadow -Wconversion -Wsign-conversion
 WEB_OUT   = docs/index.html
 
 web: $(GAME_SRC) web/shell.html
+	@command -v $(EMCC) >/dev/null 2>&1 || { echo "error: $(EMCC) not found. Install Emscripten: https://emscripten.org/docs/getting_started/downloads.html"; exit 1; }
 	mkdir -p docs
 	$(EMCC) -std=gnu11 $(WARN_WEB) \
 	    -s USE_SDL=2 \
@@ -80,6 +106,10 @@ web: $(GAME_SRC) web/shell.html
 
 clean:
 	rm -f $(TARGET) mitris test_logic test_determinism test_replay
-	rm -rf docs
+	rm -f docs/index.html docs/index.js docs/index.wasm docs/index.data
+	rmdir docs 2>/dev/null || true
 
-.PHONY: all release test test_determinism test_replay web clean
+.PHONY: all release test test_determinism test_replay web clean ci
+
+ci: test
+	@cd server && go vet ./... && go test ./... 2>&1 | tail -20; echo "ci: done"

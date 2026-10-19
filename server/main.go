@@ -11,8 +11,43 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true // non-browser (health checks, wscat)
+		}
+		allowed := os.Getenv("ALLOWED_ORIGINS") // comma-separated, e.g. "https://example.com,https://app.example.com"
+		if allowed == "" {
+			return true
+		}
+		for _, o := range splitComma(allowed) {
+			if o == origin {
+				return true
+			}
+		}
+		return false
 	},
+}
+
+func splitComma(s string) []string {
+	var out []string
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == ',' {
+			t := s[start:i]
+			// trim spaces
+			for len(t) > 0 && (t[0] == ' ' || t[0] == '\t') {
+				t = t[1:]
+			}
+			for len(t) > 0 && (t[len(t)-1] == ' ' || t[len(t)-1] == '\t') {
+				t = t[:len(t)-1]
+			}
+			if t != "" {
+				out = append(out, t)
+			}
+			start = i + 1
+		}
+	}
+	return out
 }
 
 func main() {

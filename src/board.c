@@ -1,15 +1,7 @@
 #include <string.h>
 #include "board.h"
 #include "piece.h"
-
-/* xorshift32 PRNG (self-contained, not shared with randomizer) */
-static uint32_t xr32(uint32_t *s)
-{
-    *s ^= *s << 13;
-    *s ^= *s >> 17;
-    *s ^= *s << 5;
-    return *s;
-}
+#include "randomizer.h"
 
 void board_clear(Board *b)
 {
@@ -118,7 +110,7 @@ void board_add_garbage(Board *b, int lines, uint32_t seed)
 
     /* Fill bottom `lines` rows with garbage */
     for (int r = BOARD_H - lines; r < BOARD_H; r++) {
-        int hole = (int)(xr32(&seed) % (uint32_t)BOARD_W);
+        int hole = (int)(rng_xorshift32(&seed) % (uint32_t)BOARD_W);
         for (int c = 0; c < BOARD_W; c++)
             b->cells[r][c] = (c == hole) ? CELL_EMPTY : CELL_GARBAGE;
     }

@@ -84,7 +84,7 @@ static const int SPAWN_Y[PIECE_COUNT] = {
 
 uint16_t piece_mask(PieceKind kind, int rotation)
 {
-    return MASKS[(int)kind][((rotation % 4) + 4) % 4];
+    return MASKS[(int)kind][rotation & 3];
 }
 
 int piece_cell_at(PieceKind kind, int rot, int px, int py)
@@ -109,6 +109,6 @@ ActivePiece piece_make(PieceKind kind, int x, int y)
 ActivePiece piece_rotated(const ActivePiece *p, int dir)
 {
     ActivePiece r = *p;
-    r.rotation = (((r.rotation + dir) % 4) + 4) % 4;
+    r.rotation = (r.rotation + dir) & 3;
     return r;
 }

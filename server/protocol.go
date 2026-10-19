@@ -71,6 +71,9 @@ type ErrorData struct {
 }
 
 func mustMarshal(v interface{}) json.RawMessage {
-	data, _ := json.Marshal(v)
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic("mustMarshal: " + err.Error())
+	}
 	return data
 }

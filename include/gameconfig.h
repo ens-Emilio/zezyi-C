@@ -14,5 +14,6 @@ typedef struct {
 } GameConfig;
 
 void gameconfig_defaults(GameConfig *cfg);
+void gameconfig_clamp(GameConfig *cfg);
 void gameconfig_load(GameConfig *cfg, const char *path);
-void gameconfig_save(const GameConfig *cfg, const char *path);
+int  gameconfig_save(const GameConfig *cfg, const char *path);

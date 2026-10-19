@@ -1,7 +1,7 @@
 #include "randomizer.h"
 
-/* xorshift32 PRNG */
-static uint32_t xorshift32(uint32_t *state)
+/* xorshift32 PRNG — shared helper (also used by board.c) */
+uint32_t rng_xorshift32(uint32_t *state)
 {
     uint32_t x = *state;
     x ^= x << 13;
@@ -19,7 +19,7 @@ static void refill_bag(PieceQueue *q)
         bag[i] = (PieceKind)i;
 
     for (int i = 6; i > 0; i--) {
-        int j = (int)(xorshift32(&q->rng_state) % (uint32_t)(i + 1));
+        int j = (int)(rng_xorshift32(&q->rng_state) % (uint32_t)(i + 1));
         PieceKind tmp = bag[i];
         bag[i] = bag[j];
         bag[j] = tmp;

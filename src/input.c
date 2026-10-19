@@ -93,6 +93,22 @@ static void repeat_update(RepeatKey *rk, int pressed, int *out)
 
 void input_poll(InputSnapshot *snap)
 {
+#ifdef ZEZYI_HEADLESS
+    extern const uint8_t *g_mock_keys;
+    extern int g_mock_nkeys;
+    if (g_mock_keys) {
+        /* Mock mode: bypass SDL entirely */
+        snap->rotate_cw = snap->rotate_ccw = 0;
+        snap->hard_drop = snap->hold = snap->pause = 0;
+        snap->menu_up = snap->menu_down = snap->menu_left = snap->menu_right = 0;
+        snap->back = snap->quit = snap->res_cycle = snap->settings = 0;
+        snap->text_backspace = snap->text_confirm = 0;
+        repeat_update(&rk_left,  g_mock_nkeys > 0 ? g_mock_keys[0] : 0, &snap->left);
+        repeat_update(&rk_right, g_mock_nkeys > 1 ? g_mock_keys[1] : 0, &snap->right);
+        repeat_update(&rk_down,  g_mock_nkeys > 2 ? g_mock_keys[2] : 0, &snap->down);
+        return;
+    }
+#endif
     /* Reset all edge-triggered fields each frame */
     snap->rotate_cw      = 0;
     snap->rotate_ccw     = 0;
@@ -179,3 +195,18 @@ void input_poll(InputSnapshot *snap)
         rk_left.das_fired = rk_right.das_fired = rk_down.das_fired = 0;
     }
 }
+
+#ifdef ZEZYI_HEADLESS
+const uint8_t *g_mock_keys = NULL;
+int g_mock_nkeys = 0;
+void input_set_mock_state(const uint8_t *keys, int nkeys)
+{
+    g_mock_keys = keys;
+    g_mock_nkeys = nkeys;
+}
+void input_clear_mock_state(void)
+{
+    g_mock_keys = NULL;
+    g_mock_nkeys = 0;
+}
+#endif
