@@ -5,17 +5,27 @@ import "encoding/json"
 type MessageType string
 
 const (
-	MsgJoin       MessageType = "join"
-	MsgCreateRoom MessageType = "create_room"
-	MsgJoinRoom   MessageType = "join_room"
-	MsgReady      MessageType = "ready"
-	MsgInput      MessageType = "input"
-	MsgFrame      MessageType = "frame"
-	MsgStart      MessageType = "start"
-	MsgEnd        MessageType = "end"
-	MsgError      MessageType = "error"
-	MsgState      MessageType = "state"
-	MsgStateAck   MessageType = "state_ack"
+	MsgJoin            MessageType = "join"
+	MsgCreateRoom      MessageType = "create_room"
+	MsgJoinRoom        MessageType = "join_room"
+	MsgReady           MessageType = "ready"
+	MsgInput           MessageType = "input"
+	MsgFrame           MessageType = "frame"
+	MsgStart           MessageType = "start"
+	MsgEnd             MessageType = "end"
+	MsgError           MessageType = "error"
+	MsgState           MessageType = "state"
+	MsgStateAck        MessageType = "state_ack"
+	MsgGarbage         MessageType = "garbage"
+	MsgRankedQueue     MessageType = "ranked_queue"
+	MsgRankedMatch     MessageType = "ranked_match"
+	MsgMatchResult     MessageType = "match_result"
+	MsgLeaderboard     MessageType = "leaderboard"
+	MsgPlayerStats     MessageType = "player_stats"
+	MsgTournamentJoin  MessageType = "tournament_join"
+	MsgTournamentStart MessageType = "tournament_start"
+	MsgTournamentState MessageType = "tournament_state"
+	MsgSpectate        MessageType = "spectate"
 )
 
 type Message struct {
@@ -68,6 +78,63 @@ type StateAckData struct {
 
 type ErrorData struct {
 	Message string `json:"message"`
+}
+
+type GarbageData struct {
+	Frame   int `json:"frame"`
+	Lines   int `json:"lines"`
+	HoleCol int `json:"hole_col"`
+}
+
+type RankedQueueData struct {
+	Queue bool `json:"queue"`
+}
+
+type MatchResultData struct {
+	Winner     string `json:"winner"`
+	Loser      string `json:"loser"`
+	WinnerMMR  int    `json:"winner_mmr"`
+	LoserMMR   int    `json:"loser_mmr"`
+	WinnerTier string `json:"winner_tier"`
+	LoserTier  string `json:"loser_tier"`
+}
+
+type LeaderboardEntry struct {
+	Name   string `json:"name"`
+	MMR    int    `json:"mmr"`
+	Tier   string `json:"tier"`
+	Wins   int    `json:"wins"`
+	Losses int    `json:"losses"`
+}
+
+type LeaderboardData struct {
+	Entries []LeaderboardEntry `json:"entries"`
+}
+
+type PlayerStatsData struct {
+	Name   string `json:"name"`
+	MMR    int    `json:"mmr"`
+	Tier   string `json:"tier"`
+	Wins   int    `json:"wins"`
+	Losses int    `json:"losses"`
+}
+
+type TournamentJoinData struct {
+	TournamentID string `json:"tournament_id"`
+}
+
+type TournamentStartData struct {
+	TournamentID string `json:"tournament_id"`
+	Round        int    `json:"round"`
+	MatchIdx     int    `json:"match_idx"`
+}
+
+type TournamentStateData struct {
+	Rounds []interface{} `json:"rounds"`
+}
+
+type SpectateData struct {
+	RoomID string `json:"room_id"`
 }
 
 func mustMarshal(v interface{}) json.RawMessage {

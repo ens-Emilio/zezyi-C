@@ -187,6 +187,15 @@ int net_send_state(NetContext *nc, int frame, uint32_t hash)
     return send_line(nc, buf);
 }
 
+int net_send_garbage(NetContext *nc, int frame, int lines, int hole_col)
+{
+	char buf[160];
+	snprintf(buf, sizeof(buf),
+		"{\"type\":\"garbage\",\"data\":{\"frame\":%d,\"lines\":%d,\"hole_col\":%d}}",
+		frame, lines, hole_col);
+	return send_line(nc, buf);
+}
+
 /* --- Minimal JSON value extractors --- */
 
 /* True if p lies inside a JSON string literal. */
@@ -356,6 +365,11 @@ int net_poll(NetContext *nc, NetMessage *out)
                          sizeof(out->winner));
         json_find_string(data, "reason", out->reason,
                          sizeof(out->reason));
+    } else if (strcmp(type_str, "garbage") == 0) {
+        out->type = NC_MSG_GARBAGE;
+        json_find_int(data, "frame", &out->frame);
+        json_find_int(data, "lines", &out->garbage_lines);
+        json_find_int(data, "hole_col", &out->garbage_hole_col);
     } else if (strcmp(type_str, "error") == 0) {
         out->type = NC_MSG_ERROR;
         json_find_string(data, "message", out->error_msg,

@@ -1326,6 +1326,18 @@ int render_init(SDL_Renderer **renderer, SDL_Window **window, int w, int h)
     return 0;
 }
 
+static void render_ghost_overlay(SDL_Renderer *r, const GameState *g) {
+    if (!g->ghost_active) return;
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+    // Draw ghost indicator text
+    int cx = s_layout.screen_w / 2;
+    SDL_SetRenderDrawColor(r, 0, 220, 255, 180);
+    const char *label = "GHOST";
+    // simple: draw at top of board
+    draw_str(r, label, cx - str_width(label, s_layout.font_sm)/2, s_layout.board.y - 20, s_layout.font_sm);
+    SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_NONE);
+}
+
 void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)
 {
     if (cfg) i18n_set_language(cfg->language);
@@ -1357,6 +1369,11 @@ void render_game(SDL_Renderer *r, const GameState *g, const GameConfig *cfg)
         case APP_GAME_OVER:
         case APP_ONLINE_VS:
             render_playing(r, g);
+            render_ghost_overlay(r, g);
+            break;
+        case APP_SPECTATE:
+            render_playing(r, g);
+            render_ghost_overlay(r, g);
             break;
         case APP_RESULTS:
         case APP_ONLINE_RESULT:

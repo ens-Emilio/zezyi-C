@@ -57,6 +57,8 @@ test: $(TEST_SRC)
 	$(CC) -std=c11 $(WARN) -g -O0 \
 	    tests/test_replay.c src/piece.c src/board.c src/randomizer.c src/rules.c src/highscore.c src/replay.c \
 	    -Iinclude -DZEZYI_HEADLESS -o test_replay && ./test_replay
+	$(CC) -std=c11 $(WARN) -g -O0 \
+	    tests/test_competitive.c src/competitive.c -Iinclude -DZEZYI_HEADLESS -o test_competitive && ./test_competitive
 
 # -----------------------------------------------------------------------
 # Determinism test — same seed must produce identical results (no SDL)
@@ -104,12 +106,19 @@ web: $(GAME_SRC) web/shell.html
 	    -o $(WEB_OUT)
 	@echo "Web build ready: $(WEB_OUT)"
 
+COMPETITIVE_SRC = tests/test_competitive.c \
+                  src/competitive.c
+test_competitive: $(COMPETITIVE_SRC)
+	$(CC) -std=c11 $(WARN) -g -O0 \
+	    $(COMPETITIVE_SRC) -Iinclude -DZEZYI_HEADLESS -o test_competitive
+	./test_competitive
+
 clean:
-	rm -f $(TARGET) mitris test_logic test_determinism test_replay
+	rm -f $(TARGET) mitris test_logic test_determinism test_replay test_competitive
 	rm -f docs/index.html docs/index.js docs/index.wasm docs/index.data
 	rmdir docs 2>/dev/null || true
 
-.PHONY: all release test test_determinism test_replay web clean ci
+.PHONY: all release test test_determinism test_replay test_competitive web clean ci
 
 ci: test
 	@cd server && go vet ./... && go test ./... 2>&1 | tail -20; echo "ci: done"

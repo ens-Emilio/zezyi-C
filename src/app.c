@@ -613,6 +613,12 @@ static void main_loop_iter(void)
                 go_to_menu(&ctx->game, &ctx->accumulator);
             }
             break;
+        case APP_SPECTATE:
+            if (ctx->input.back) {
+                online_disconnect(&ctx->online);
+                go_to_menu(&ctx->game, &ctx->accumulator);
+            }
+            break;
         case APP_ONLINE_DISCONNECT:
             if (ctx->input.hard_drop || ctx->input.back) {
                 online_disconnect(&ctx->online);
@@ -660,6 +666,7 @@ after_switch:
             case APP_RESULTS:
             case APP_ONLINE_RESULT:
             case APP_ONLINE_DISCONNECT:
+            case APP_SPECTATE:
                 audio_stop_bgm();
                 break;
         }

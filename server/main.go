@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net"
 	"net/http"
@@ -13,9 +14,9 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		if origin == "" {
-			return true // non-browser (health checks, wscat)
+			return true
 		}
-		allowed := os.Getenv("ALLOWED_ORIGINS") // comma-separated, e.g. "https://example.com,https://app.example.com"
+		allowed := os.Getenv("ALLOWED_ORIGINS")
 		if allowed == "" {
 			return true
 		}
@@ -34,7 +35,6 @@ func splitComma(s string) []string {
 	for i := 0; i <= len(s); i++ {
 		if i == len(s) || s[i] == ',' {
 			t := s[start:i]
-			// trim spaces
 			for len(t) > 0 && (t[0] == ' ' || t[0] == '\t') {
 				t = t[1:]
 			}
@@ -55,8 +55,12 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
-
-	mm := NewMatchmaker()
+	storePath := os.Getenv("STORE_PATH")
+	if storePath == "" {
+		storePath = "zezyi_stats.json"
+	}
+	store := NewStore(storePath)
+	mm := NewMatchmakerWithStore(store)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -74,13 +78,68 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
+	http.HandleFunc("/leaderboard", func(w http.ResponseWriter, r *http.Request) {
+		entries := store.Leaderboard(20)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"entries": convertEntries(entries)})
+	})
+
+	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		name := r.URL.Query().Get("name")
+		if name == "" {
+			http.Error(w, "missing name", 400)
+			return
+		}
+		stats := store.Get(name)
+		if stats == nil {
+			np := NewPlayerStats(name)
+			stats = np
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(stats)
+	})
+
+	http.HandleFunc("/leaderboard/sprint", func(w http.ResponseWriter, r *http.Request) {
+		records := store.GetTimeAttackRecords(1)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(records)
+	})
+	http.HandleFunc("/leaderboard/ultra", func(w http.ResponseWriter, r *http.Request) {
+		records := store.GetTimeAttackRecords(2)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(records)
+	})
+	http.HandleFunc("/leaderboard/survival", func(w http.ResponseWriter, r *http.Request) {
+		records := store.GetTimeAttackRecords(4)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(records)
+	})
+	http.HandleFunc("/submit", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "POST only", 405)
+			return
+		}
+		var rec TimeAttackRecord
+		if err := json.NewDecoder(r.Body).Decode(&rec); err != nil {
+			http.Error(w, "bad json", 400)
+			return
+		}
+		if rec.Name == "" {
+			http.Error(w, "missing name", 400)
+			return
+		}
+		store.SubmitTimeAttack(rec.Name, rec.Mode, rec.TimeMs, rec.Score)
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
 	tcpPort := os.Getenv("TCP_PORT")
 	if tcpPort == "" {
 		tcpPort = "8081"
 	}
 	startTCPServer(tcpPort, mm)
 
-	log.Printf("zezyi server listening on :%s", port)
+	log.Printf("zezyi server listening on :%s (store=%s)", port, storePath)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}

@@ -99,7 +99,8 @@ typedef enum {
     APP_ONLINE_LOBBY,
     APP_ONLINE_VS,
     APP_ONLINE_RESULT,
-    APP_ONLINE_DISCONNECT /* opponent / network timeout         */
+    APP_ONLINE_DISCONNECT, /* opponent / network timeout         */
+    APP_SPECTATE      /* watching a match                   */
 } AppState;
 
 /* Contextual tips — set by rules.c, displayed by render_sdl.c */
@@ -228,6 +229,10 @@ typedef struct {
     int stat_tspins;     /* T-spin clears (any lines)    */
     int stat_max_combo;  /* highest combo streak reached */
     int stat_actions;    /* total inputs (for APM)       */
+
+    /* Ghost VS overlay — parallel replay (client-side spectate) */
+    int ghost_active;
+    uint32_t ghost_tick;
 
     /* Audio events — set by rules.c, zeroed + dispatched by app.c each frame */
     uint32_t  audio_events;

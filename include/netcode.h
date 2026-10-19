@@ -23,6 +23,7 @@ int net_join_room(NetContext *nc, const char *room_id);
 int net_send_ready(NetContext *nc, int ready);
 int net_send_input(NetContext *nc, int frame, uint8_t input_bitmask);
 int net_send_state(NetContext *nc, int frame, uint32_t hash);
+int net_send_garbage(NetContext *nc, int frame, int lines, int hole_col);
 
 typedef enum {
     NC_MSG_NONE = 0,
@@ -31,7 +32,13 @@ typedef enum {
     NC_MSG_FRAME,
     NC_MSG_STATE_ACK,
     NC_MSG_END,
-    NC_MSG_ERROR
+    NC_MSG_ERROR,
+    NC_MSG_GARBAGE,
+    NC_MSG_RANKED_MATCH,
+    NC_MSG_MATCH_RESULT,
+    NC_MSG_LEADERBOARD,
+    NC_MSG_TOURNAMENT_STATE,
+    NC_MSG_SPECTATE_FRAME
 } NetMsgType;
 
 typedef struct {
@@ -49,6 +56,8 @@ typedef struct {
     char    winner[32];
     char    reason[32];
     char    error_msg[128];
+    int     garbage_lines;
+    int     garbage_hole_col;
 } NetMessage;
 
 int net_poll(NetContext *nc, NetMessage *out);

@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "online.h"
+#include "competitive.h"
 #include "rules.h"
 #include "time_step.h"
+#include "board.h"
 
 static void set_disconnect(OnlineCtx *o, const char *msg) {
     snprintf(o->disconnect_reason, sizeof(o->disconnect_reason),
@@ -96,6 +98,9 @@ void online_vs_tick(OnlineCtx *o, GameState *game, InputSnapshot *input,
         } else if (msg.type == NC_MSG_END) {
             game->app_state = APP_ONLINE_RESULT;
             return;
+        } else if (msg.type == NC_MSG_GARBAGE) {
+            // Apply garbage to local board
+            board_add_garbage(&game->board, msg.garbage_lines, (uint32_t)(msg.garbage_hole_col + msg.frame * 9973));
         } else if (msg.type == NC_MSG_ERROR) {
             set_disconnect(o, msg.error_msg);
             online_disconnect(o);
